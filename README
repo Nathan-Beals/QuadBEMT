@@ -1,0 +1,11 @@
+BEMT code written specifically for low Reynolds number small propellers in axial and edgewise forward flight.
+
+- Prandtl tip-loss function
+- Mach number corrections to lift coefficient
+- Profile power calculations with radial velocity component considerations
+- Cl and Cd are obtained for low Re airfoils by pre computing values as a function of Reynolds number and AoA, for
+  instance by using a code such as Xfoil.
+- Currently only uniform inflow is implemented for the forward flight case computed using momentum theory.
+- Supports arbitrary chord and twist distributions via the propeller class.
+
+This code is still in development.
