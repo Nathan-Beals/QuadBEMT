@@ -26,4 +26,4 @@ class Propeller(object):
         return self.Clalpha * aoa
 
     def get_Cd(self, aoa):
-        return 0.1 + 0.025*aoa + 0.65*aoa**2
+        return 0.01 + 0.025*aoa + 0.65*aoa**2

@@ -11,7 +11,7 @@ TEMP_SSL = 288.16    # Standard sea level temp in K
 PRESS_SSL = 1.01325 * 10**5    # Standard sea level pressure in N/m**2
 
 
-def bemt(propeller, pitch, omega, alpha, v_climb=0, v_inf=0, alt=0, tip_loss=True, CT_target=0, mach_corr=True,
+def bemt(propeller, pitch, omega, alpha, v_climb=0, v_inf=0, alt=0, tip_loss=True, CT0=0, mach_corr=True,
          ff_inflow='uniform'):
 
     if v_climb == 0 and v_inf == 0:
@@ -61,7 +61,6 @@ def bemt(propeller, pitch, omega, alpha, v_climb=0, v_inf=0, alt=0, tip_loss=Tru
         # Now if tip_loss correction is desired, use the F = 1 solution as a starting guess to find the inflow
         if tip_loss:
             converged = np.array([False]*n_elements)
-            c = 0
             while not all(converged):
                 local_inflow_old = local_inflow
                 f_tip = n_blades/2. * ((1 - r)/(r * rel_inflow_angle))
@@ -72,7 +71,6 @@ def bemt(propeller, pitch, omega, alpha, v_climb=0, v_inf=0, alt=0, tip_loss=Tru
                                                                                   blade_rad, F, spd_snd,
                                                                                   mach_corr=mach_corr)
                 converged = abs((local_inflow - local_inflow_old)/local_inflow) < 0.0005
-                c += 1
 
         # Now calculate the effective angle of attack at the blade stations
         eff_aoa = local_angle - rel_inflow_angle
@@ -109,48 +107,59 @@ def bemt(propeller, pitch, omega, alpha, v_climb=0, v_inf=0, alt=0, tip_loss=Tru
         dpsi = 2 * np.pi * y / n_azi_elements   # size of d_psi for each annulus
 
         if ff_inflow == 'uniform':
-            local_inflow = inflow.uniform_ff(CT_target, alpha, mu, n_elements)
+            local_inflow = inflow.uniform_ff(CT0, alpha, mu, n_elements)
 
-        dT_azi_total = np.zeros(n_elements)
-        dPi_azi_total = np.zeros(n_elements)
-        dCpo_azi_total = np.zeros(n_elements)
-        dCl_azi_total = np.zeros(n_elements)
+        dT_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+        dPi_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+        dCpo_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+        dCl_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+        i_azi = 0
         for azi_ang in psi:
-            u_p = local_inflow * omega * blade_rad * np.sin(azi_ang)
+            u_p = local_inflow * omega * blade_rad
             u_t = omega*y + mu*omega*blade_rad*np.sin(azi_ang)
             u_r = mu * omega * blade_rad * np.cos(azi_ang)
             local_mach = u_t / spd_snd
             rel_inflow_angle = np.arctan(u_p/u_t)
             eff_aoa = local_angle - rel_inflow_angle
-            Cl, Cd = propeller.aero_coeffs(eff_aoa)
+            Cl = propeller.get_Cl(eff_aoa)
+            Cd = propeller.get_Cd(eff_aoa)
             # Mach number correction to the lift coefficient
             if mach_corr:
                 Cl /= np.sqrt(1 - local_mach**2)
-            dCl_azi_total += Cl
+            dCl_this_azi = Cl
+            dCl_mat[i_azi:] = dCl_this_azi
             # Calculate thrust
-            dT_azi_total += 0.5 * dens * (u_t**2+u_p**2) * chord * \
-                            (Cl*np.cos(rel_inflow_angle)-Cd*np.sin(rel_inflow_angle)) * dpsi
+            dT_this_azi = 0.5 * dens * (u_t**2+u_p**2) * chord * \
+                          (Cl*np.cos(rel_inflow_angle)-Cd*np.sin(rel_inflow_angle))
+            dT_mat[i_azi:] = dT_this_azi
             # Calculate induced power
-            dPi_azi_total += 0.5 * dens * (u_t**2+u_p**2) * chord * \
-                             (Cd*np.cos(rel_inflow_angle)+Cl*np.sin(rel_inflow_angle)) * omega * dpsi
+            dPi_this_azi = 0.5 * dens * (u_t**2+u_p**2) * chord * \
+                           (Cd*np.cos(rel_inflow_angle)+Cl*np.sin(rel_inflow_angle))
+            dPi_mat[i_azi:] = dPi_this_azi
             # Calculate profile power coefficient
-            coslamb = abs(u_t)/(u_t**2+u_r**2)**0.5
+            u_t_nd = r + mu * np.sin(azi_ang)
+            u_r_nd = mu + np.cos(azi_ang)
+            coslamb = abs(u_t)/(u_t_nd**2+u_r_nd**2)**0.5
             Cd3d = Cd * (alpha*coslamb)/coslamb
             D = 0.5 * u_t * abs(u_t) * chord * Cd3d
-            Fr = D * (u_r/u_t)
-            Fx = D * np.cos(rel_inflow_angle)
-            dCpo_azi_total += local_solidity * (u_t*Fx/chord + u_r*Fr/chord) * dpsi
+            #print "(Cd, Cd3d, u_t, AoA) = (%f, %f, %f, %f)" % (np.mean(Cd), np.mean(Cd3d), np.mean(u_t), np.mean(eff_aoa))
+            dCpo_this_azi = local_solidity * (u_t_nd**2 + u_r_nd**2) * D / (chord * u_t_nd) / blade_rad
+            print np.mean(dCpo_this_azi)
+            dCpo_mat[i_azi:] = dCpo_this_azi
+            i_azi += 1
+        dCT_mat = dT_mat / (dens * np.pi * blade_rad**2 * v_tip**2)
 
         # Calculate forces
-        dCl = dCl_azi_total / n_azi_elements
-        dT = n_blades * dy * dT_azi_total / n_azi_elements
-        dCt = dT/(dens * np.pi * blade_rad**2 * v_tip**2)
+        dCl = np.mean(dCl_mat, axis=0)
+        dT = np.mean(dT_mat, axis=0) * dy * dpsi * n_blades
+        dCt = np.mean(dCT_mat, axis=0) * dy * dpsi * n_blades
         T = sum(dT)
         CT = sum(dCt)
+        CT_azifun = np.sum(dCT_mat * dy * dpsi, axis=1)
 
-        dPi = n_blades * y * dy * dPi_azi_total / n_azi_elements
+        dPi = np.mean(dPi_mat, axis=0) * omega * y * dy * dpsi * n_blades
         dCpi = dPi/(dens * np.pi * blade_rad**2 * v_tip**3)
-        dCpo = n_blades * dr * dCpo_azi_total / n_azi_elements
+        dCpo = np.mean(dCpo_mat, axis=0) * dy * dpsi * n_blades
         dPo = dens * np.pi * blade_rad**2 * v_tip**3 * dCpo
         Pi = sum(dPi)
         CPi = sum(dCpi)
@@ -159,7 +168,7 @@ def bemt(propeller, pitch, omega, alpha, v_climb=0, v_inf=0, alt=0, tip_loss=Tru
         CP = CPi + CPo
         Ptot = Pi + Po
 
-    return CT, CP, dCt, Ptot, local_inflow, rel_inflow_angle, dCl
+    return CT, np.mean(dCpo_mat, axis=0), dCt, Ptot, local_inflow, rel_inflow_angle, dCl, CT_azifun
 
 
 

@@ -21,20 +21,61 @@ def linear_taper(root_chord, tip_chord, r):
 
 n_elements = 40
 n_azi_elements = 60
-n_blades = 1
+n_blades = 2
 blade_radius = 6
-root_cutout = 0
+root_cutout = 0.1
 dy = float(blade_radius-root_cutout)/n_elements
 dr = float(1)/n_elements
 y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/blade_radius
 
+twist = 8 * 2 * np.pi / 360 * np.ones(n_elements)
 chord = 0.4 * np.ones(n_elements)
 omega_rpm = 400
-omega_rad = omega_rpm * 2 * np.pi / 60
+omega_radps = omega_rpm * 2 * np.pi / 60
 alpha_deg = 8
 alpha_rad = alpha_deg * 2 * np.pi / 360
 Clalpha = 2 * np.pi
+
+# Ghazirah test cases
+pitch = 0
+CT0 = 0.002
+speeds = np.linspace(1, 100, 50)
+prop = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha)
+prop_CTs = []
+prop_CPs = []
+num_iter = []
+CT_azifun_mat = []
+power_req = []
+mu = speeds * np.cos(alpha_rad) / (omega_radps*blade_radius)
+for speed in speeds:
+    CT_old = CT0
+    converged = False
+    n_iter = 0
+    while not converged:
+        n_iter += 1
+        CT, CP, dCt, Ptot, local_inflow, rel_inflow_angle, dCl, CT_azifun = bemt.bemt(prop, pitch, omega_radps, alpha_rad,
+                                                                           v_inf=speed, CT0=CT_old, mach_corr=False)
+        converged = abs((CT - CT_old) / CT) < 0.0005
+        if converged:
+            prop_CTs.append(CT)
+            prop_CPs.append(CP)
+            num_iter.append(n_iter)
+            CT_azifun_mat.append(CT_azifun)
+            power_req.append(Ptot)
+        CT_old = CT
+
+for i in xrange(len(speeds)):
+    print "(v_inf, mu, CT, iter) = (%f, %f, %f, %d)" % (speeds[i], mu[i], prop_CTs[i], num_iter[i])
+
+plt.figure(1)
+plt.plot(speeds*1.944, [745.699872*pwr for pwr in power_req])
+plt.xlabel("Airspeed, kts")
+plt.ylabel("Power required, watts")
+
+
+
+plt.show()
 
 # # Leishman 3.2
 # solidity = 0.1
@@ -136,6 +177,7 @@ Clalpha = 2 * np.pi
 # plt.grid(True)
 #
 # plt.show()
+
 
 
 
