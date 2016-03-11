@@ -19,63 +19,99 @@ def ideal_taper(tip_chord, r):
 def linear_taper(root_chord, tip_chord, r):
     return root_chord - (root_chord-tip_chord)*r
 
-n_elements = 40
+
+# Geometry for 9x4.7 apc slow flyer
+n_elements = 18
 n_azi_elements = 60
 n_blades = 2
-blade_radius = 6
-root_cutout = 0.1
+blade_radius = 8.90 * 0.0254
+root_cutout = 0.1 * blade_radius
+chord = np.array([0.127, 0.135, 0.158, 0.178, 0.195, 0.209, 0.219, 0.225, 0.227, 0.226, 0.221, 0.212, 0.199, 0.182,
+                  0.161, 0.135, 0.097, 0.058]) * blade_radius
+twist = np.array([27.54, 25.28, 26.08, 25.47, 24.07, 22.18, 20.00, 18.18, 16.38, 14.83, 13.63, 12.56, 11.56, 10.65,
+                  9.68, 8.51, 6.72, 4.89]) * 2 * np.pi / 360
+pitch = 0
 dy = float(blade_radius-root_cutout)/n_elements
 dr = float(1)/n_elements
 y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/blade_radius
-
-twist = 8 * 2 * np.pi / 360 * np.ones(n_elements)
-chord = 0.4 * np.ones(n_elements)
-omega_rpm = 400
-omega_radps = omega_rpm * 2 * np.pi / 60
-alpha_deg = 8
-alpha_rad = alpha_deg * 2 * np.pi / 360
 Clalpha = 2 * np.pi
 
-# Ghazirah test cases
-pitch = 0
-CT0 = 0.002
-speeds = np.linspace(1, 100, 50)
-prop = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha)
-prop_CTs = []
-prop_CPs = []
-num_iter = []
-CT_azifun_mat = []
-power_req = []
-mu = speeds * np.cos(alpha_rad) / (omega_radps*blade_radius)
-for speed in speeds:
-    CT_old = CT0
-    converged = False
-    n_iter = 0
-    while not converged:
-        n_iter += 1
-        CT, CP, dCt, Ptot, local_inflow, rel_inflow_angle, dCl, CT_azifun = bemt.bemt(prop, pitch, omega_radps, alpha_rad,
-                                                                           v_inf=speed, CT0=CT_old, mach_corr=False)
-        converged = abs((CT - CT_old) / CT) < 0.0005
-        if converged:
-            prop_CTs.append(CT)
-            prop_CPs.append(CP)
-            num_iter.append(n_iter)
-            CT_azifun_mat.append(CT_azifun)
-            power_req.append(Ptot)
-        CT_old = CT
+slow_fly_9 = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha)
 
-for i in xrange(len(speeds)):
-    print "(v_inf, mu, CT, iter) = (%f, %f, %f, %d)" % (speeds[i], mu[i], prop_CTs[i], num_iter[i])
+omegas = np.array([2763, 3062, 3310, 3622, 3874, 4153, 4422, 4687, 4942, 5226, 5473, 5736, 6026, 6285, 6554, 6768]) \
+         * 2 * np.pi / 60
+
+CT_array = np.empty([omegas.size])
+CP_array = np.empty([omegas.size])
+for i in xrange(omegas.size):
+    T, H, L_observer, D_observer, P, CT, CP = bemt.bemt(slow_fly_9, pitch, omegas[i])
+    CT_array[i] = CT
+    CP_array[i] = CP
 
 plt.figure(1)
-plt.plot(speeds*1.944, [745.699872*pwr for pwr in power_req])
-plt.xlabel("Airspeed, kts")
-plt.ylabel("Power required, watts")
+plt.plot(omegas * 60 / 2 / np.pi, CT_array)
+plt.xlabel("\Omega, RPM")
+plt.ylabel("Thrust Coefficient")
+plt.xlim([1500, 7500])
+plt.ylim([0, 0.15])
 
-
+plt.figure(2)
+plt.plot(omegas * 60 / 2 / np.pi, CP_array)
+plt.xlabel("\Omega, RPM")
+plt.ylabel("Power Coefficient")
+plt.xlim([1500, 7500])
+plt.ylim([0, 0.10])
 
 plt.show()
+
+
+# pitch = 0
+# CT0 = 0.002
+# speeds = np.linspace(1, 100, 50)
+# alt = 1585
+# prop = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha)
+# prop_CTs = []
+# prop_Pos = []
+# prop_Pis = []
+# num_iter = []
+# CT_azifun_mat = []
+# power_req = []
+# mu = speeds * np.cos(alpha_rad) / (omega_radps*blade_radius)
+# for speed in speeds:
+#     CT_old = CT0
+#     converged = False
+#     n_iter = 0
+#     while not converged:
+#         n_iter += 1
+#         CT, Pi, Po, dCt, Ptot, local_inflow, rel_inflow_angle, dCl, CT_azifun = bemt.bemt(prop, pitch, omega_radps, alpha_rad,
+#                                                                            v_inf=speed, CT0=CT_old, mach_corr=False)
+#         converged = abs((CT - CT_old) / CT) < 0.0005
+#         if converged:
+#             prop_CTs.append(CT)
+#             prop_Pis.append(Pi)
+#             prop_Pos.append(Po)
+#             num_iter.append(n_iter)
+#             CT_azifun_mat.append(CT_azifun)
+#             power_req.append(Ptot)
+#         CT_old = CT
+#
+# for i in xrange(len(speeds)):
+#     print "(v_inf, mu, CT, iter) = (%f, %f, %f, %d)" % (speeds[i], mu[i], prop_CTs[i], num_iter[i])
+#
+# plt.figure(1)
+# plt.plot(speeds*1.944, [pwr/745.699872 for pwr in power_req])
+# plt.xlabel("Airspeed, kts")
+# plt.ylabel("Power required, hp")
+#
+# plt.figure(2)
+# plt.plot(speeds*1.944, [p/745.699872 for p in prop_Pos])
+# plt.plot(speeds*1.944, [p/745.699872 for p in prop_Pis])
+# plt.xlabel("Airspeed, kts")
+# plt.ylabel("Induced and profile power, hp")
+# plt.legend(["Profile", "Induced"], loc="upper left")
+#
+# plt.show()
 
 # # Leishman 3.2
 # solidity = 0.1
