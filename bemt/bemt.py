@@ -39,7 +39,6 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, T_req, v_inf, n_azi_elem
 
     # Define some other parameters for use in calculations
     v_tip = blade_rad * omega   # Blade tip speed
-    lambda_c = v_climb/v_tip    # Climb inflow ratio
     mu = v_inf*np.cos(alpha)/(omega*blade_rad)  # Advance ratio
     CT_req = T_req / (dens * np.pi * blade_rad * (omega*blade_rad)**2)
 
@@ -118,8 +117,7 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, T_req, v_inf, n_azi_elem
     return T, CT, H, CH, L_observer, D_observer, P, CP
 
 
-def bemt_axial(propeller, pitch, omega, n_azi_elements, alpha=0, v_climb=0, v_inf=0, alt=0, tip_loss=True, CT0=0,
-               mach_corr=True):
+def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_corr=True):
     # Calculate geopotential altitude
     alt_geop = (RAD_EARTH*alt)/(RAD_EARTH+alt)
 
@@ -128,6 +126,7 @@ def bemt_axial(propeller, pitch, omega, n_azi_elements, alpha=0, v_climb=0, v_in
     press = PRESS_SSL * (temp/TEMP_SSL)**(-Gs/(A*R))
     dens = press/(R*temp)
     spd_snd = np.sqrt(GAMMA * R * temp)
+    kine_visc = 1.460 * 10**-5
 
     # Define blade geometry parameters. Pitch, chord, and r are all lists of the same length defining the blade
     # geometry at a specific span location r
@@ -147,7 +146,6 @@ def bemt_axial(propeller, pitch, omega, n_azi_elements, alpha=0, v_climb=0, v_in
     # Define some other parameters for use in calculations
     v_tip = blade_rad * omega   # Blade tip speed
     lambda_c = v_climb/v_tip    # Climb inflow ratio
-    mu = v_inf*np.cos(alpha)/(omega*blade_rad)  # Advance ratio
 
     # Now handle hover and vertical flight cases
     # First calculate inflow along span by using F = 1 to get initial value not including tip loss
@@ -170,36 +168,38 @@ def bemt_axial(propeller, pitch, omega, n_azi_elements, alpha=0, v_climb=0, v_in
                                                                               mach_corr=mach_corr)
             converged = abs((local_inflow - local_inflow_old)/local_inflow) < 0.0005
 
+    # Calculate Reynolds number along the span of the blade
+    Re = u_resultant * chord / kine_visc
+
     # Now calculate the effective angle of attack at the blade stations
     eff_aoa = local_angle - rel_inflow_angle
 
     # Retrieve Cl and Cd values according to effective angle of attack along the blades
     Cl = np.array(propeller.get_Cl(eff_aoa))
     Cd = np.array(propeller.get_Cd(eff_aoa))
-    dCl = Cl
 
     # Calculate forces
-    dL = 0.5*dens*u_resultant**2*chord*Cl*dy
-    print dL
-    dD = 0.5*dens*u_resultant**2*chord*Cd*dy
+    dL = 0.5*dens*u_resultant**2*chord*Cl
+    dD = 0.5*dens*u_resultant**2*chord*Cd
 
-    dT = n_blades*(dL*np.cos(rel_inflow_angle)-dD*np.sin(rel_inflow_angle))
-    dQ = n_blades*(dD*np.cos(rel_inflow_angle)+dL*np.sin(rel_inflow_angle))
+    dFz = dL*np.cos(rel_inflow_angle) - dD*np.sin(rel_inflow_angle)
+    dFx = dD*np.cos(rel_inflow_angle) + dL*np.sin(rel_inflow_angle)
+
+    dT = n_blades * dFz * dy
+    dQ = n_blades * dFx * y * dy
+    dP = n_blades * dFx * omega * y * dy
+
     T = sum(dT)
     Q = sum(dQ)
+    P = sum(dP)
 
-    dPi = n_blades*dL*np.sin(rel_inflow_angle)*y*omega
-    dPp = n_blades*(dD*np.cos(rel_inflow_angle))*y*omega
-    dPtot = dPi + dPp
-    Pi = sum(dPi)
-    Pp = sum(dPp)
-    Ptot = sum(dPtot)
+    CT = T / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**2)
+    CP = P / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
+    CQ = Q / (dens * np.pi * blade_rad**3 * (omega*blade_rad)**2)
 
-    dCt = dT/(dens*np.pi*blade_rad**2*v_tip**2)
-    dCp = dPtot/(dens*np.pi*blade_rad**2*v_tip**3)
-    CT = sum(dCt)
-    CP = sum(dCp)
-    return T
+    prop_CT = T / (dens * (omega/2/np.pi)**2 * (blade_rad*2)**4)
+    prop_CP = P / (dens * (omega/2/np.pi)**3 * (blade_rad*2)**5)
+    return CT, CP, CQ, Cl, dT, prop_CT, prop_CP, Re, eff_aoa
 
 
 

@@ -20,48 +20,103 @@ def linear_taper(root_chord, tip_chord, r):
     return root_chord - (root_chord-tip_chord)*r
 
 
-# Geometry for 9x4.7 apc slow flyer
-n_elements = 18
-n_azi_elements = 60
+# # Geometry for 9x4.7 apc slow flyer
+# n_azi_elements = 60
+# n_blades = 2
+# blade_radius = 8.90 * 0.0254 / 2
+# root_cutout = 0.1 * blade_radius
+# chord = np.array([0.127, 0.135, 0.158, 0.178, 0.195, 0.209, 0.219, 0.225, 0.227, 0.226, 0.221, 0.212, 0.199, 0.182,
+#                   0.161, 0.135, 0.097, 0.058]) * blade_radius
+# twist = np.array([27.54, 25.28, 26.08, 25.47, 24.07, 22.18, 20.00, 18.18, 16.38, 14.83, 13.63, 12.56, 11.56, 10.65,
+#                   9.68, 8.51, 6.72, 4.89]) * 2 * np.pi / 360
+# n_elements = chord.size
+# pitch = 0
+
+# Geometry for 10x5 apc thin electric
 n_blades = 2
-blade_radius = 8.90 * 0.0254
+blade_radius = 10 * 0.0254 / 2
 root_cutout = 0.1 * blade_radius
-chord = np.array([0.127, 0.135, 0.158, 0.178, 0.195, 0.209, 0.219, 0.225, 0.227, 0.226, 0.221, 0.212, 0.199, 0.182,
-                  0.161, 0.135, 0.097, 0.058]) * blade_radius
-twist = np.array([27.54, 25.28, 26.08, 25.47, 24.07, 22.18, 20.00, 18.18, 16.38, 14.83, 13.63, 12.56, 11.56, 10.65,
-                  9.68, 8.51, 6.72, 4.89]) * 2 * np.pi / 360
+chord = np.array([0.130, 0.149, 0.173, 0.189, 0.197, 0.201, 0.200, 0.194, 0.186, 0.174, 0.160, 0.145, 0.128, 0.112,
+                  0.096, 0.081, 0.061, 0.041]) * blade_radius
+twist = np.array([32.76, 37.19, 33.54, 29.25, 25.64, 22.54, 20.27, 18.46, 17.05, 15.97, 14.87, 14.09, 13.39, 12.84,
+                  12.25, 11.37, 10.19, 8.99]) * 2 * np.pi / 360
+n_elements = chord.size
 pitch = 0
+
 dy = float(blade_radius-root_cutout)/n_elements
 dr = float(1)/n_elements
 y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/blade_radius
 Clalpha = 2 * np.pi
 
-slow_fly_9 = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha)
+thin_electric_10 = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha)
 
-omegas = np.array([2763, 3062, 3310, 3622, 3874, 4153, 4422, 4687, 4942, 5226, 5473, 5736, 6026, 6285, 6554, 6768]) \
+# omegas = np.array([2763, 3062, 3310, 3622, 3874, 4153, 4422, 4687, 4942, 5226, 5473, 5736, 6026, 6285, 6554, 6768]) \
+#          * 2 * np.pi / 60
+omegas = np.array([2508, 2795, 3093, 3344, 3630, 3919, 4176, 4446, 4743, 5025, 5314, 5596, 5869, 6146, 6434, 6708]) \
          * 2 * np.pi / 60
-
 CT_array = np.empty([omegas.size])
 CP_array = np.empty([omegas.size])
+CQ_array = np.empty([omegas.size])
+high_rpm_Cl = 0
+high_rpm_dT = 0
+prop_CT = 0
+prop_CP = 0
+prop_Re = 0
+prop_aoa = 0
 for i in xrange(omegas.size):
-    T, H, L_observer, D_observer, P, CT, CP = bemt.bemt(slow_fly_9, pitch, omegas[i])
+    CT, CP, CQ, Cl, dT, pCT, pCP, Re, aoa = bemt.bemt_axial(thin_electric_10, pitch, omegas[i])
     CT_array[i] = CT
     CP_array[i] = CP
+    CQ_array[i] = CQ
+    if i == omegas.size-1:
+        high_rpm_Cl = Cl
+        high_rpm_dT = dT
+        prop_CT = pCT
+        prop_CP = pCP
+        prop_Re = Re
+        prop_aoa = aoa
+        print omegas[i] * 60 / 2 / np.pi
+print "CT(RPM) = " + str(CT_array)
+print "CP(RPM) = " + str(CP_array)
+print "CQ(RPM) = " + str(CQ_array)
+print "propCT = " + str(prop_CT)
+print "propCP = " + str(prop_CP)
 
-plt.figure(1)
-plt.plot(omegas * 60 / 2 / np.pi, CT_array)
-plt.xlabel("\Omega, RPM")
-plt.ylabel("Thrust Coefficient")
-plt.xlim([1500, 7500])
-plt.ylim([0, 0.15])
+# plt.figure(1)
+# plt.plot(omegas * 60 / 2 / np.pi, CT_array)
+# plt.xlabel("\Omega, RPM")
+# plt.ylabel("Thrust Coefficient")
+# plt.xlim([1500, 7500])
+# plt.ylim([0, 0.15])
+#
+# plt.figure(2)
+# plt.plot(omegas * 60 / 2 / np.pi, CP_array)
+# plt.xlabel("\Omega, RPM")
+# plt.ylabel("Power Coefficient")
+# plt.xlim([1500, 7500])
+# plt.ylim([0, 0.10])
+#
+# plt.figure(3)
+# plt.plot(r, high_rpm_Cl)
+# plt.xlabel("Radial location")
+# plt.ylabel("Lift coefficient")
+#
+# plt.figure(4)
+# plt.plot(r, high_rpm_dT)
+# plt.xlabel("Radial location")
+# plt.ylabel("Thrust distribution")
 
-plt.figure(2)
-plt.plot(omegas * 60 / 2 / np.pi, CP_array)
-plt.xlabel("\Omega, RPM")
-plt.ylabel("Power Coefficient")
-plt.xlim([1500, 7500])
-plt.ylim([0, 0.10])
+plt.figure(5)
+plt.plot(r, prop_Re)
+plt.xlabel("Radial location")
+plt.ylabel("Reynolds number")
+
+plt.figure(6)
+plt.plot(r, prop_aoa*360/2/np.pi)
+plt.xlabel("Radial location")
+plt.ylabel("Angle of attack, deg")
+
 
 plt.show()
 
