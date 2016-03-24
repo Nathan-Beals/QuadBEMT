@@ -49,7 +49,8 @@ y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/blade_radius
 Clalpha = 2 * np.pi
 
-thin_electric_10 = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha)
+thin_electric_10 = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha,
+                                       airfoils=(('NACA4412', 0, 1),))
 
 # omegas = np.array([2763, 3062, 3310, 3622, 3874, 4153, 4422, 4687, 4942, 5226, 5473, 5736, 6026, 6285, 6554, 6768]) \
 #          * 2 * np.pi / 60
@@ -76,7 +77,6 @@ for i in xrange(omegas.size):
         prop_CP = pCP
         prop_Re = Re
         prop_aoa = aoa
-        print omegas[i] * 60 / 2 / np.pi
 print "CT(RPM) = " + str(CT_array)
 print "CP(RPM) = " + str(CP_array)
 print "CQ(RPM) = " + str(CQ_array)

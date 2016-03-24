@@ -49,4 +49,4 @@ while not converged:
         for alpha in xrange(alpha0, alpha_max, alpha_inc):
             T, CT, H, CH, L_observer, D_observer, P, CP = bemt.bemt_forward_flight(slow_fly_9, pitch, omega, alpha,
                                                                                    T_req, v_inf, n_azi_elements)
-            alpha_requirement = np.arctan(D_observer/)
+            alpha_requirement = np.arctan(D_observer/L_req) + np.arctan(H / T)

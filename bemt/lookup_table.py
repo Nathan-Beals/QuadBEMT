@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from unit_conversion import deg2rad
 
 
 def create_table(airfoil_name):
@@ -22,15 +23,13 @@ def create_table(airfoil_name):
                     end_index = line.index('Ncrit') - 1
                     Re = float(line[start_index:end_index+1])
         alpha, CL, CD = np.loadtxt(file_path, dtype=float, skiprows=12, usecols=(0, 1, 2), unpack=True)
-        reynolds_numbers.append([Re]*len(alpha))
-        alphas.append(alpha)
-        CLs.append(CL)
-        CDs.append(CD)
+        reynolds_numbers += [Re]*len(alpha)
+        alphas += list(alpha)
+        CLs += list(CL)
+        CDs += list(CD)
         i += 1
     reynolds_numbers = np.array(reynolds_numbers)
     alphas = np.array(alphas)
     CLs = np.array(CLs)
     CDs = np.array(CDs)
-    return reynolds_numbers, alphas, CLs, CDs
-
-create_table('NACA4412')
+    return alphas, reynolds_numbers, CLs, CDs

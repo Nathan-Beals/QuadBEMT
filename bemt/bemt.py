@@ -1,5 +1,6 @@
 import numpy as np
 import inflow
+from unit_conversion import rad2deg
 
 # Define some constants
 RAD_EARTH = 6371000    # Radius of Earth in meters
@@ -175,8 +176,12 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     eff_aoa = local_angle - rel_inflow_angle
 
     # Retrieve Cl and Cd values according to effective angle of attack along the blades
-    Cl = np.array(propeller.get_Cl(eff_aoa))
-    Cd = np.array(propeller.get_Cd(eff_aoa))
+    Cl = np.array(propeller.get_Cl(eff_aoa, Re))
+    print Cl
+    print Re
+    print rad2deg(eff_aoa)
+    Cd = np.array(propeller.get_Cd(eff_aoa, Re))
+    print Cd
 
     # Calculate forces
     dL = 0.5*dens*u_resultant**2*chord*Cl
