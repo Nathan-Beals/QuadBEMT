@@ -32,11 +32,11 @@ class Propeller(object):
             self.airfoils = ('simple', 0, 1)
         else:
             self.airfoils = airfoils
-            print self.airfoils
             self.Cl_tables = {}
             self.Cd_tables = {}
             for airfoil in self.airfoils:
                 alpha, Re, CL, CD = create_table(airfoil[0])
+
                 self.Cl_tables[airfoil[0]] = ((alpha, Re), CL)
                 self.Cd_tables[airfoil[0]] = ((alpha, Re), CD)
 

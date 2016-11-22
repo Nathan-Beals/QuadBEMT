@@ -62,11 +62,15 @@ Clalpha = 2 * np.pi
 
 thin_electric_10 = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha,
                                        airfoils=(('NACA4412', 0, 1),))
+DA4002 = propeller.Propeller(twist, chord, blade_radius, n_blades, r, y, dr, dy, Clalpha, airfoils=(('SDA1075', 0, 1),))
 
 # omegas = np.array([2763, 3062, 3310, 3622, 3874, 4153, 4422, 4687, 4942, 5226, 5473, 5736, 6026, 6285, 6554, 6768]) \
 #          * 2 * np.pi / 60
-omegas = np.array([2508, 2795, 3093, 3344, 3630, 3919, 4176, 4446, 4743, 5025, 5314, 5596, 5869, 6146, 6434, 6708]) \
-         * 2 * np.pi / 60
+# omegas = np.array([2508, 2795, 3093, 3344, 3630, 3919, 4176, 4446, 4743, 5025, 5314, 5596, 5869, 6146, 6434, 6708]) \
+#          * 2 * np.pi / 60
+omegas = np.array([1546.667, 1700., 2053.333, 2253.333, 2503.333, 2746.667, 2946.667, 3280., 3526.667, 3743.333,
+                   3940., 4213.333, 4443.333, 4676.667, 4930., 5186.667, 5430., 5710., 5943.333]) * 2 * np.pi / 60
+
 CT_array = np.empty([omegas.size])
 CP_array = np.empty([omegas.size])
 CQ_array = np.empty([omegas.size])
@@ -77,22 +81,24 @@ prop_CP = 0
 prop_Re = 0
 prop_aoa = 0
 for i in xrange(omegas.size):
-    CT, CP, CQ, Cl, dT, pCT, pCP, Re, aoa = bemt.bemt_axial(thin_electric_10, pitch, omegas[i])
+    CT, CP, CQ, Cl, dT, pCT, pCP, Re, aoa = bemt.bemt_axial(DA4002, pitch, omegas[i])
     CT_array[i] = CT
     CP_array[i] = CP
     CQ_array[i] = CQ
-    if i == omegas.size-1:
+    if i == omegas.size - 1:
         high_rpm_Cl = Cl
         high_rpm_dT = dT
         prop_CT = pCT
         prop_CP = pCP
         prop_Re = Re
         prop_aoa = aoa
-print "CT(RPM) = " + str(CT_array)
-print "CP(RPM) = " + str(CP_array)
-print "CQ(RPM) = " + str(CQ_array)
+# print "CT(RPM) = " + str(CT_array)
+# print "CP(RPM) = " + str(CP_array)
+# print "CQ(RPM) = " + str(CQ_array)
 print "propCT = " + str(prop_CT)
 print "propCP = " + str(prop_CP)
+print "propT = " + str(sum(high_rpm_dT))
+print "RPM = " + str(omegas[omegas.size-1] * 60 / 2 / np.pi)
 
 # plt.figure(1)
 # plt.plot(omegas * 60 / 2 / np.pi, CT_array)
@@ -118,18 +124,18 @@ print "propCP = " + str(prop_CP)
 # plt.xlabel("Radial location")
 # plt.ylabel("Thrust distribution")
 
-plt.figure(5)
-plt.plot(r, prop_Re)
-plt.xlabel("Radial location")
-plt.ylabel("Reynolds number")
-
-plt.figure(6)
-plt.plot(r, prop_aoa*360/2/np.pi)
-plt.xlabel("Radial location")
-plt.ylabel("Angle of attack, deg")
-
-
-plt.show()
+# plt.figure(5)
+# plt.plot(r, prop_Re)
+# plt.xlabel("Radial location")
+# plt.ylabel("Reynolds number")
+#
+# plt.figure(6)
+# plt.plot(r, prop_aoa*360/2/np.pi)
+# plt.xlabel("Radial location")
+# plt.ylabel("Angle of attack, deg")
+#
+#
+# plt.show()
 
 
 # pitch = 0

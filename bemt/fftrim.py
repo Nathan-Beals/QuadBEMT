@@ -1,4 +1,4 @@
-import numpy as np
+ import numpy as np
 import matplotlib.pyplot as plt
 import propeller
 import bemt
@@ -34,6 +34,7 @@ omega_max_RPM = 7000
 omega_inc_RPM = 1
 alpha0_deg = 0.01
 alpha_max_deg = 10
+
 alpha_inc_deg = 0.01
 
 omega0 = rpm2radps(omega0_RPM)

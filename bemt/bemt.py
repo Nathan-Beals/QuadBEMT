@@ -28,7 +28,6 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, T_req, v_inf, n_azi_elem
     n_blades = propeller.n_blades
     blade_rad = propeller.radius
     twist = np.array(propeller.twist)
-
     local_angle = pitch + twist
     chord = np.array(propeller.chord)
     dy = propeller.dy
@@ -163,10 +162,16 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
             f = f_tip
             f[-1] = 0.0000000000001
             F = (2/np.pi) * np.arccos(np.exp(-f))
-            local_inflow, rel_inflow_angle, u_resultant = inflow.axial_flight(local_solidity, propeller, lambda_c,
-                                                                              local_angle, v_tip, v_climb, omega, r,
-                                                                              blade_rad, F, spd_snd,
-                                                                              mach_corr=mach_corr)
+            try:
+                local_inflow, rel_inflow_angle, u_resultant = inflow.axial_flight(local_solidity, propeller, lambda_c,
+                                                                                  local_angle, v_tip, v_climb, omega, r,
+                                                                                  blade_rad, F, spd_snd,
+                                                                                  mach_corr=mach_corr)
+            except FloatingPointError:
+                print "ftip = %s" % str(f_tip)
+                print "f = %s" % str(f)
+                print "phi = %s" % rel_inflow_angle
+                raise
             converged = abs((local_inflow - local_inflow_old)/local_inflow) < 0.0005
 
     # Calculate Reynolds number along the span of the blade
@@ -177,11 +182,7 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
 
     # Retrieve Cl and Cd values according to effective angle of attack along the blades
     Cl = np.array(propeller.get_Cl(eff_aoa, Re))
-    print Cl
-    print Re
-    print rad2deg(eff_aoa)
     Cd = np.array(propeller.get_Cd(eff_aoa, Re))
-    print Cd
 
     # Calculate forces
     dL = 0.5*dens*u_resultant**2*chord*Cl
