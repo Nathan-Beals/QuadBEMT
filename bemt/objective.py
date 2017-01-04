@@ -101,11 +101,11 @@ opt_prob.addConGroup('tdec', n_elements-1, 'i')
 opt_prob.addConGroup('cdec', n_elements-1, 'i')
 print opt_prob
 
-nsga2 = NSGA2()
-nsga2.setOption('PrintOut', 0)
-nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-      dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust)
-print opt_prob.solution(0)
+# nsga2 = NSGA2()
+# nsga2.setOption('PrintOut', 0)
+# nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
+#       dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust)
+# print opt_prob.solution(0)
 
 # conmin = CONMIN()
 # conmin.setOption('IPRINT', 0)
@@ -114,9 +114,9 @@ print opt_prob.solution(0)
 # print opt_prob.solution(0)
 
 
-# slsqp = SLSQP()
-# slsqp.setOption('IPRINT', -1)
-# slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-#       dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust)
-# print opt_prob.solution(0)
+slsqp = SLSQP()
+slsqp.setOption('IPRINT', -1)
+slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
+      dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust)
+print opt_prob.solution(0)
 
