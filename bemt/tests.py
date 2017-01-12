@@ -74,6 +74,7 @@ omegas = np.array([1546.667, 1700., 2053.333, 2253.333, 2503.333, 2746.667, 2946
 CT_array = np.empty([omegas.size])
 CP_array = np.empty([omegas.size])
 CQ_array = np.empty([omegas.size])
+Re_array = np.empty([omegas.size])
 high_rpm_Cl = 0
 high_rpm_dT = 0
 prop_CT = 0
@@ -82,10 +83,11 @@ prop_Re = 0
 prop_aoa = 0
 for i in xrange(omegas.size):
     CT, CP, CQ, Cl, dT, pCT, pCP, Re, aoa = bemt.bemt_axial(DA4002, pitch, omegas[i])
-    CT_array[i] = CT
-    CP_array[i] = CP
+    CT_array[i] = pCT
+    CP_array[i] = pCP
     CQ_array[i] = CQ
-    if i == omegas.size - 1:
+    Re_array[i] = Re[3*len(Re)/4]
+    if i == omegas.size - 6:
         high_rpm_Cl = Cl
         high_rpm_dT = dT
         prop_CT = pCT
@@ -95,17 +97,42 @@ for i in xrange(omegas.size):
 # print "CT(RPM) = " + str(CT_array)
 # print "CP(RPM) = " + str(CP_array)
 # print "CQ(RPM) = " + str(CQ_array)
-print "propCT = " + str(prop_CT)
-print "propCP = " + str(prop_CP)
-print "propT = " + str(sum(high_rpm_dT))
-print "RPM = " + str(omegas[omegas.size-1] * 60 / 2 / np.pi)
+# print "propCT = " + str(prop_CT)
+# print "propCP = " + str(prop_CP)
+# print "propT = " + str(sum(high_rpm_dT))
+# print "RPM = " + str(omegas[omegas.size-6] * 60 / 2 / np.pi)
 
-# plt.figure(1)
-# plt.plot(omegas * 60 / 2 / np.pi, CT_array)
-# plt.xlabel("\Omega, RPM")
-# plt.ylabel("Thrust Coefficient")
-# plt.xlim([1500, 7500])
-# plt.ylim([0, 0.15])
+# UIUC Exp Results
+DA4002_CT = [0.1259310, 0.127314, 0.129033, 0.127408, 0.131518, 0.130653, 0.132682, 0.130863, 0.132955, 0.134311,
+             0.134936, 0.136319, 0.135364, 0.138118, 0.138094, 0.138747, 0.139023, 0.139617, 0.140450]
+DA4002_CP = [0.088432, 0.088785, 0.087836, 0.085943, 0.087917, 0.086259, 0.086557, 0.083443, 0.083443, 0.083174,
+             0.082488, 0.079168, 0.078000, 0.079092, 0.078738, 0.079026, 0.079163, 0.079595, 0.080081]
+
+plt.figure(1)
+plt.plot(omegas * 60 / 2 / np.pi, CT_array, 'ro', omegas * 60 / 2 / np.pi, DA4002_CT, 'go')
+plt.xlabel("\Omega, RPM")
+plt.ylabel("Thrust Coefficient")
+plt.xlim([1500, 7500])
+plt.ylim([0, 0.20])
+
+plt.figure(2)
+plt.plot(Re_array, CT_array, 'ro', Re_array, DA4002_CT, 'go')
+plt.xlabel('3/4 Span Reynolds Number')
+plt.ylabel("Thrust Coefficient")
+plt.ylim(0, 0.20)
+
+plt.figure(3)
+plt.plot(omegas * 60 / 2 / np.pi, CP_array, 'ro', omegas * 60 / 2 / np.pi, DA4002_CP, 'go')
+plt.xlabel("\Omega, RPM")
+plt.ylabel("Power Coefficient")
+plt.xlim([1500, 7500])
+plt.ylim([0, 0.10])
+
+plt.figure(4)
+plt.plot(Re_array, CP_array, 'ro', Re_array, DA4002_CP, 'go')
+plt.xlabel('3/4 Span Reynolds Number')
+plt.ylabel("Power Coefficient")
+plt.ylim(0, 0.10)
 #
 # plt.figure(2)
 # plt.plot(omegas * 60 / 2 / np.pi, CP_array)
@@ -135,7 +162,7 @@ print "RPM = " + str(omegas[omegas.size-1] * 60 / 2 / np.pi)
 # plt.ylabel("Angle of attack, deg")
 #
 #
-# plt.show()
+plt.show()
 
 
 # pitch = 0
