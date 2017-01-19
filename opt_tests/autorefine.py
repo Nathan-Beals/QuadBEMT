@@ -17,9 +17,6 @@ from pyOpt import SLSQP
 
 
 def objfun(x, **kwargs):
-
-    test_print = kwargs['test_print']
-    print test_print
     a = [3, 5, 2, 1, 7]
     b = [5, 2, 1, 4, 9]
     c = [1, 2, 5, 2, 3]
@@ -45,7 +42,7 @@ print opt_prob
 
 # Global optimization
 nsga2 = NSGA2()
-nsga2(opt_prob, test_print='test print')
+nsga2(opt_prob)
 print opt_prob.solution(0)
 
 # Local optimization refinement

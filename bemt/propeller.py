@@ -29,7 +29,7 @@ class Propeller(object):
             self.chord = solidity*np.pi*radius/n_blades
 
         if airfoils is None:
-            self.airfoils = ('simple', 0, 1)
+            self.airfoils = (('simple', 0, 1),)
         else:
             self.airfoils = airfoils
             self.Cl_tables = {}
@@ -59,7 +59,7 @@ class Propeller(object):
         for airfoil in self.airfoils:
             if airfoil[1] <= r_loc <= airfoil[2]:
                 return airfoil[0]
-        return 'simple'
+        return 'SDA1075'
 
     def get_Clalpha(self):
         return np.ones(len(self.r)) * self.Clalpha

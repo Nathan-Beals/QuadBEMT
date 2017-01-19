@@ -8,6 +8,16 @@ from pyOpt import CONMIN
 import numpy as np
 
 
+def counted(f):
+    def wrapped(*args, **kwargs):
+        print wrapped.calls
+        wrapped.calls += 1
+        return f(*args, **kwargs)
+    wrapped.calls = 0
+    return wrapped
+
+
+@counted
 def objfun(xn, **kwargs):
 
     print 'objfun called'
@@ -29,11 +39,20 @@ def objfun(xn, **kwargs):
     int_twist = np.array(xn[:len(r)])
     int_chord = np.array([x*radius for x in xn[len(r):]])
 
-    f = 0.0
+    f = 1000
     fail = 0
-    g = [0.0] * (4*(len(r)-1)+1)
+    g = [1.0] * (4*(len(r)-1)+1)
 
-    prop = propeller.Propeller(int_twist, int_chord, int_radius, int_n_blades, int_r, int_y, int_dr, int_dy, int_Clalpha, airfoils=int_airfoils)
+    # Calculate geometric constraint values and return immediately if there are any failures
+    a1 = 2.0
+    a2 = unit_conversion.deg2rad(10.0)
+    g[1:] = get_geocons(int_twist, int_chord, a1, a2)
+    if any(g[1:]) > 0.0:
+        print "geocons violated"
+        return f, g, fail
+
+    prop = propeller.Propeller(int_twist, int_chord, int_radius, int_n_blades, int_r, int_y, int_dr, int_dy,
+                               int_Clalpha, airfoils=int_airfoils)
 
     try:
         CT, CP, CQ, Cl, dT, pCT, pCP, Re, aoa = bemt.bemt_axial(prop, int_pitch, omega)
@@ -48,30 +67,41 @@ def objfun(xn, **kwargs):
     print "Thrust = %s" % str(sum(dT))
 
     # Evaluate constraints
-    a1 = 2.0
-    a2 = unit_conversion.deg2rad(10.0)
     g[0] = abs(sum(dT) - target_thrust) - 0.05
-    con_indx = 1
-    for i in xrange(len(twist)-1):
-        g[con_indx] = twist[i+1] - a2*twist[i]
+
+    return f, g, fail
+
+
+def get_geocons(t, c, a1, a2):
+    """
+    This function evaluates geometric constraints on the alternative and returns the list.
+    :param t: twist values
+    :param c: chord values
+    :param a1: twist stretch factor
+    :param a2: chord stretch factor
+    :return: constraint values
+    """
+    geocons = [0.0] * (4*(len(t)-1))
+    con_indx = 0
+    for i in xrange(len(t)-1):
+        geocons[con_indx] = t[i+1] - a2*t[i]
         con_indx += 1
-    for i in xrange(len(twist)-1):
-        g[con_indx] = twist[i]/a2 - twist[i+1]
+    for i in xrange(len(t)-1):
+        geocons[con_indx] = t[i]/a2 - t[i+1]
         con_indx += 1
-    for i in xrange(len(chord)-1):
+    for i in xrange(len(c)-1):
         try:
-            g[con_indx] = chord[i+1] - a1*chord[i]
+            geocons[con_indx] = c[i+1] - a1*c[i]
         except IndexError:
             print con_indx
             print i
             raise
         con_indx += 1
-    for i in xrange(len(chord)-1):
-        g[con_indx] = chord[i]/a1 - i + 1
+    for i in xrange(len(c)-1):
+        geocons[con_indx] = c[i]/a1 - i + 1
         con_indx += 1
+    return geocons
 
-    #print "ObjFun exit"
-    return f, g, fail
 
 ###########################################
 # Define some values
@@ -128,7 +158,8 @@ print opt_prob
 nsga2 = NSGA2()
 nsga2.setOption('PrintOut', 0)
 nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-      dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust, PopSize=52, PrintOut=2)
+      dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust, PopSize=100, PrintOut=2,
+      xinit=1)
 print opt_prob.solution(0)
 
 # conmin = CONMIN()
@@ -143,4 +174,3 @@ print opt_prob.solution(0)
 # slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
 #       dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust)
 # print opt_prob.solution(0)
-

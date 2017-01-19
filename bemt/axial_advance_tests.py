@@ -63,10 +63,13 @@ exp_J = [0.123969, 0.155062, 0.186357, 0.218201, 0.250515, 0.281467, 0.312083, 0
          0.468579, 0.500784, 0.531197, 0.565824, 0.593765, 0.625372, 0.659234, 0.689432, 0.721506, 0.751023, 0.783654,
          0.810712, 0.847761, 0.876248]
 
+print Re_array
+
 plt.figure(1)
 plt.plot(adv_ratios, CT_array, 'ro', exp_J, exp_CT, 'go')
 plt.xlabel("J")
 plt.ylabel("Thrust Coefficient")
 plt.grid(b='on')
+plt.xlim(0, 1.0)
 
 plt.show()

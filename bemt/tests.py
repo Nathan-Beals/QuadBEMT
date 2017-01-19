@@ -87,7 +87,7 @@ for i in xrange(omegas.size):
     CP_array[i] = pCP
     CQ_array[i] = CQ
     Re_array[i] = Re[3*len(Re)/4]
-    if i == omegas.size - 6:
+    if i == omegas.size - 1:
         high_rpm_Cl = Cl
         high_rpm_dT = dT
         prop_CT = pCT
@@ -97,10 +97,10 @@ for i in xrange(omegas.size):
 # print "CT(RPM) = " + str(CT_array)
 # print "CP(RPM) = " + str(CP_array)
 # print "CQ(RPM) = " + str(CQ_array)
-# print "propCT = " + str(prop_CT)
-# print "propCP = " + str(prop_CP)
-# print "propT = " + str(sum(high_rpm_dT))
-# print "RPM = " + str(omegas[omegas.size-6] * 60 / 2 / np.pi)
+print "propCT = " + str(prop_CT)
+print "propCP = " + str(prop_CP)
+print "propT = " + str(sum(high_rpm_dT))
+print "RPM = " + str(omegas[omegas.size-1] * 60 / 2 / np.pi)
 
 # UIUC Exp Results
 DA4002_CT = [0.1259310, 0.127314, 0.129033, 0.127408, 0.131518, 0.130653, 0.132682, 0.130863, 0.132955, 0.134311,
@@ -109,17 +109,21 @@ DA4002_CP = [0.088432, 0.088785, 0.087836, 0.085943, 0.087917, 0.086259, 0.08655
              0.082488, 0.079168, 0.078000, 0.079092, 0.078738, 0.079026, 0.079163, 0.079595, 0.080081]
 
 plt.figure(1)
-plt.plot(omegas * 60 / 2 / np.pi, CT_array, 'ro', omegas * 60 / 2 / np.pi, DA4002_CT, 'go')
+line1 = plt.plot(omegas * 60 / 2 / np.pi, CT_array, 'ro', label='BEMT')
+line2 = plt.plot(omegas * 60 / 2 / np.pi, DA4002_CT, 'go', label='Exp')
 plt.xlabel("\Omega, RPM")
 plt.ylabel("Thrust Coefficient")
 plt.xlim([1500, 7500])
 plt.ylim([0, 0.20])
+plt.legend()
 
 plt.figure(2)
-plt.plot(Re_array, CT_array, 'ro', Re_array, DA4002_CT, 'go')
+line1 = plt.plot(Re_array, CT_array, 'ro', label='BEMT')
+line2 = plt.plot(Re_array, DA4002_CT, 'go', label='Exp')
 plt.xlabel('3/4 Span Reynolds Number')
 plt.ylabel("Thrust Coefficient")
 plt.ylim(0, 0.20)
+plt.legend()
 
 plt.figure(3)
 plt.plot(omegas * 60 / 2 / np.pi, CP_array, 'ro', omegas * 60 / 2 / np.pi, DA4002_CP, 'go')
@@ -127,12 +131,14 @@ plt.xlabel("\Omega, RPM")
 plt.ylabel("Power Coefficient")
 plt.xlim([1500, 7500])
 plt.ylim([0, 0.10])
+plt.legend()
 
 plt.figure(4)
 plt.plot(Re_array, CP_array, 'ro', Re_array, DA4002_CP, 'go')
 plt.xlabel('3/4 Span Reynolds Number')
 plt.ylabel("Power Coefficient")
 plt.ylim(0, 0.10)
+plt.legend()
 #
 # plt.figure(2)
 # plt.plot(omegas * 60 / 2 / np.pi, CP_array)
