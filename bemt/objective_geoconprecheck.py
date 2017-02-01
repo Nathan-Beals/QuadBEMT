@@ -32,22 +32,27 @@ def objfun(xn, **kwargs):
     int_Clalpha = kwargs['Clalpha']
     int_pitch = kwargs['pitch']
     target_thrust = kwargs['thrust']
-    #omega = xn[0]
-    omega = 5943 * 2 * np.pi / 60
-    # int_twist = np.array(xn[1:len(r)+1])
-    # int_chord = np.array([x*radius for x in xn[len(r)+1:2*len(r)+1]])
-    int_twist = np.array(xn[:len(r)])
-    int_chord = np.array([x*radius for x in xn[len(r):]])
+    cval_max = kwargs['max_chord']
+    omega = xn[0]
+    twist0 = xn[1]
+    chord0 = xn[2]*radius
+    dtwist = np.array(xn[3:len(r)+2])
+    dchord = np.array([x*radius for x in xn[len(r)+2:2*len(r)+2]])
+
+    int_twist = calc_twist_dist(twist0, dtwist)
+    int_chord = calc_chord_dist(chord0, dchord)
+
+    # int_twist = np.array(xn[:len(r)])
+    # int_chord = np.array([x*radius for x in xn[len(r):]])
 
     f = 1000
     fail = 0
-    g = [1.0] * (4*(len(r)-1)+1)
+    g = [1.0] * (2*len(r)+1)
 
     # Calculate geometric constraint values and return immediately if there are any failures
-    a1 = 2.0
-    a2 = unit_conversion.deg2rad(10.0)
-    g[1:] = get_geocons(int_twist, int_chord, a1, a2)
-    if any(g[1:]) > 0.0:
+    g[1:] = get_geocons(int_chord, cval_max, int_radius)
+    print g[1:]
+    if any(geocon > 0.0 for geocon in g[1:]):
         print "geocons violated"
         return f, g, fail
 
@@ -66,41 +71,38 @@ def objfun(xn, **kwargs):
     print f
     print "Thrust = %s" % str(sum(dT))
 
-    # Evaluate constraints
-    g[0] = abs(sum(dT) - target_thrust) - 0.05
+    # Evaluate thrust constraint. Target thrust must be less than computed thrust
+    g[0] = target_thrust - sum(dT)
 
     return f, g, fail
 
 
-def get_geocons(t, c, a1, a2):
-    """
-    This function evaluates geometric constraints on the alternative and returns the list.
-    :param t: twist values
-    :param c: chord values
-    :param a1: twist stretch factor
-    :param a2: chord stretch factor
-    :return: constraint values
-    """
-    geocons = [0.0] * (4*(len(t)-1))
-    con_indx = 0
-    for i in xrange(len(t)-1):
-        geocons[con_indx] = t[i+1] - a2*t[i]
-        con_indx += 1
-    for i in xrange(len(t)-1):
-        geocons[con_indx] = t[i]/a2 - t[i+1]
-        con_indx += 1
-    for i in xrange(len(c)-1):
-        try:
-            geocons[con_indx] = c[i+1] - a1*c[i]
-        except IndexError:
-            print con_indx
-            print i
-            raise
-        con_indx += 1
-    for i in xrange(len(c)-1):
-        geocons[con_indx] = c[i]/a1 - i + 1
-        con_indx += 1
+def get_geocons(c, cval_max, R):
+    geocons = [0.0] * (2*len(c))
+    i = 0
+    for cval in c:
+        geocons[i] = -cval
+        i += 1
+    for cval in c:
+        geocons[i] = cval/R - cval_max
+        i += 1
     return geocons
+
+
+def calc_twist_dist(t0, dt_vec):
+    t = np.array([0.0]*(len(dt_vec)+1))
+    t[0] = t0
+    for i, dt in enumerate(dt_vec):
+        t[i+1] = t[i] + dt
+    return t
+
+
+def calc_chord_dist(c0, dc_vec):
+    c = np.array([0.0]*(len(dc_vec)+1))
+    c[0] = c0
+    for i, dc in enumerate(dc_vec):
+        c[i+1] = c[i] + dc
+    return c
 
 
 ###########################################
@@ -118,6 +120,7 @@ Clalpha = 2 * np.pi
 pitch = 0.0
 airfoils = (('SDA1075', 0.0, 1.0),)
 thrust = 5.22
+max_chord = 0.4
 
 ###########################################
 # Set design variable bounds
@@ -133,33 +136,52 @@ twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831
 omega_lower = 5000.0 * 2*np.pi/60
 omega_upper = 6500.0 * 2*np.pi/60
 omega_start = 5900.0 * 2*np.pi/60
-twist_lower = 0.0 * 2*np.pi/360
-twist_upper = 50.0 * 2*np.pi/360
-twist_start = twist
-chord_lower = 0
-chord_upper = 0.4
-chord_start = chord
+# twist_lower = 0.0 * 2*np.pi/360
+# twist_upper = 50.0 * 2*np.pi/360
+# twist_start = twist
+# chord_lower = 0
+# chord_upper = 0.4
+# chord_start = chord
+
+# Twist at the hub must be less than or equal to arcsin(hub_height/hub_diameter), approx 23 degrees
+theta0_start = 20.0 * 2 * np.pi / 360
+theta0_lower = 0.0 * 2 * np.pi / 360
+theta0_upper = 23.0 * 2 * np.pi / 360
+# Chord values at the hub must be less than or equal to the diameter of the hub
+chord0_start = 0.12
+chord0_upper = 0.127
+chord0_lower = 0.05
+
+dtwist_start = 0.0 * 2 * np.pi / 360
+dtwist_lower = -10.0 * 2 * np.pi / 360
+dtwist_upper = 10.0 * 2 * np.pi / 360
+dchord_start = 0.0
+dchord_lower = -0.05
+dchord_upper = 0.05
 # chord_lower = unit_conversion.in2m(0.25)
 # chord_upper = unit_conversion.in2m(3.0)
 # chord_start = unit_conversion.in2m(0.5)
 
 opt_prob = Optimization('Rotor in Hover', objfun)
-#opt_prob.addVar('omega', 'c', value=omega_start, lower=omega_lower, upper=omega_upper)
-opt_prob.addVarGroup('twist', n_elements, 'c', value=twist_start, lower=twist_lower, upper=twist_upper)
-opt_prob.addVarGroup('chord', n_elements, 'c', value=chord_start, lower=chord_lower, upper=chord_upper)
+opt_prob.addVar('omega', 'c', value=omega_start, lower=omega_lower, upper=omega_upper)
+opt_prob.addVar('theta0', 'c', value=theta0_start, lower=theta0_lower, upper=theta0_upper)
+opt_prob.addVar('chord0', 'c', value=chord0_start, lower=chord0_lower, upper=chord0_upper)
+opt_prob.addVarGroup('dtwist', n_elements-1, 'c', value=dtwist_start, lower=dtwist_lower, upper=dtwist_upper)
+opt_prob.addVarGroup('dchord', n_elements-1, 'c', value=dchord_start, lower=dchord_lower, upper=dchord_upper)
+# opt_prob.addVarGroup('twist', n_elements, 'c', value=twist_start, lower=twist_lower, upper=twist_upper)
+# opt_prob.addVarGroup('chord', n_elements, 'c', value=chord_start, lower=chord_lower, upper=chord_upper)
 opt_prob.addObj('f')
 opt_prob.addCon('thrust', 'i')
-opt_prob.addConGroup('tdec', n_elements-1, 'i')
-opt_prob.addConGroup('t2nd', n_elements-1, 'i')
-opt_prob.addConGroup('cdec', n_elements-1, 'i')
-opt_prob.addConGroup('c2nd', n_elements-1, 'i')
+opt_prob.addConGroup('c_lower', n_elements, 'i')
+opt_prob.addConGroup('c_upper', n_elements, 'i')
 print opt_prob
 
 nsga2 = NSGA2()
-nsga2.setOption('PrintOut', 0)
+nsga2.setOption('PrintOut', 2)
+nsga2.setOption('PopSize', 372)
+nsga2.setOption('maxGen', 50)
 nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-      dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust, PopSize=100, PrintOut=2,
-      xinit=1)
+      dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
 print opt_prob.solution(0)
 
 # conmin = CONMIN()

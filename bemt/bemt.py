@@ -182,8 +182,13 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
 
     # Retrieve Cl and Cd values according to effective angle of attack along the blades. This will return NaN toward
     # the root
-    Cl = np.nan_to_num(np.array(propeller.get_Cl(eff_aoa, Re)))
-    Cd = np.nan_to_num(np.array(propeller.get_Cd(eff_aoa, Re)))
+    # Cl = np.nan_to_num(np.array(propeller.get_Cl(eff_aoa, Re)))
+    # Cd = np.nan_to_num(np.array(propeller.get_Cd(eff_aoa, Re)))
+
+    Cl = np.array(propeller.get_Cl(eff_aoa, Re))
+    Cd = np.array(propeller.get_Cd(eff_aoa, Re))
+    print "Cl = " + str(Cl)
+    print "Cd = " + str(Cd)
 
     # Calculate forces
     dL = 0.5*dens*u_resultant**2*chord*Cl
