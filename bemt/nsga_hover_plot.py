@@ -12,7 +12,6 @@ dy = float(radius-root_cutout)/n_elements
 dr = float(1)/n_elements
 y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/radius
-Clalpha = 2 * np.pi
 pitch = 0.0
 airfoils = (('SDA1075', 0.0, 1.0),)
 thrust = 5.22
@@ -39,13 +38,64 @@ max_chord = 0.4
 ############################################
 
 ############ Test 3 ########################
-omega = 680.540767
-theta0 = 0.320063
-chord0 = 0.122870
-dtwist = np.array([-0.131272, -0.048603, -0.091425, 0.171687, -0.047733, -0.088764, -0.003366, 0.150650, 0.060453,
-                   -0.168429, 0.058931, 0.039991, -0.095891, -0.017007, 0.005211, -0.066564, -0.058793])
-dchord = np.array([0.039651, 0.040291, -0.033465, 0.033191, 0.019851, 0.030646, -0.046596, 0.049231, 0.046226,
-                   -0.039365, 0.039439, 0.024125, 0.030256, 0.025809, -0.016043, -0.012905, -0.013165])
+# omega = 680.540767
+# theta0 = 0.320063
+# chord0 = 0.122870
+# dtwist = np.array([-0.131272, -0.048603, -0.091425, 0.171687, -0.047733, -0.088764, -0.003366, 0.150650, 0.060453,
+#                    -0.168429, 0.058931, 0.039991, -0.095891, -0.017007, 0.005211, -0.066564, -0.058793])
+# dchord = np.array([0.039651, 0.040291, -0.033465, 0.033191, 0.019851, 0.030646, -0.046596, 0.049231, 0.046226,
+#                    -0.039365, 0.039439, 0.024125, 0.030256, 0.025809, -0.016043, -0.012905, -0.013165])
+############################################
+
+############ Test 4 ########################
+# omega = 614.410800
+# theta0 = 0.370607
+# chord0 = 0.126276
+# dtwist = np.array([-0.158407, 0.080290, 0.088475, 0.058860, 0.136430, -0.099698, -0.095792, -0.132567, -0.144394,
+#                    0.155031, -0.112972, 0.048031, -0.049668, 0.001085, 0.012840, -0.129098, -0.049580])
+# dchord = np.array([0.012987, 0.049636, 0.042496, 0.017863, 0.040340, -0.000895, 0.016335, 0.049916, 0.020678, -0.011996,
+#                    -0.023302, -0.018517, -0.007816, 0.013603, -0.030474, 0.022230, 0.045440])
+###########################################
+
+############ Test 5 #######################
+# omega = 624.698621
+# theta0 = 0.331718
+# chord0 = 0.120594
+# dtwist = np.array([-0.037092, 0.037449, 0.087490, 0.060749, -0.033991, -0.147636, 0.010353, -0.077433, -0.156896,
+#                    0.155319, -0.071940, 0.012944, -0.043551, -0.001275, 0.027710, -0.133497, -0.045003])
+# dchord = np.array([0.035663, 0.048244, 0.026311, 0.025575, 0.032583, 0.019873, 0.011969, 0.028818, 0.031445, 0.001121,
+#                    -0.018293, -0.028388, 0.013017, 0.016265, -0.030051, 0.004988, 0.044851])
+###########################################
+
+########### No Tip loss no GeoCons ########
+# omega = 537.809942
+# theta0 = 0.538470
+# chord0 = 0.875314
+# dtwist = np.array([-0.118980, -0.021633, 0.024974, -0.174503, -0.072010, -0.173192, -0.058247, -0.102644, 0.028660,
+#                    0.161007, 0.069044, -0.062104, -0.037059, -0.081645, 0.024131, 0.108387, -0.010453])
+# dchord = np.array([0.038025, -0.015922, -0.022282, -0.002897, -0.034241, 0.030693, -0.050589, -0.007714, 0.032086,
+#                    -0.018731, 0.045765, -0.054933, 0.076813, 0.048910, -0.079941, -0.072764, 0.073052])
+###########################################
+
+########## No Tip/Mach no NegInflows ######
+# omega = 525.624058
+# theta0 = 0.355572
+# chord0 = 0.716411
+# dtwist = np.array([0.008419, 0.061331, -0.124701, -0.139102, -0.057765, 0.089032, 0.087092, -0.129683, 0.019089,
+#                    0.039940, -0.102672, -0.072554, 0.096547, -0.068370, -0.056449, -0.000731, 0.098145])
+# dchord = np.array([0.037889, -0.076113, 0.032740, -0.087678, 0.065222, 0.039185, 0.081976, -0.058099, -0.050094,
+#                    -0.046166, 0.000603, 0.036750, 0.095209, 0.068672, 0.071175, -0.093865, -0.076424])
+
+########### DA4002 ########################
+omega = 5943 * 2*np.pi/60
+twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
+                  18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
+chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787, 0.1786,
+                  0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
+dtwist = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
+dchord = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
+theta0 = twist[0]
+chord0 = chord[0]
 
 
 def calc_twist_dist(t0, dt_vec):
@@ -70,25 +120,39 @@ chord = calc_chord_dist(chord0, dchord)
 chord_meters = chord * radius
 
 # Run BEMT on propeller
-prop = propeller.Propeller(twist, chord_meters, radius, n_blades, r, y, dr, dy, Clalpha, airfoils=airfoils)
+prop = propeller.Propeller(twist, chord_meters, radius, n_blades, r, y, dr, dy, airfoils=airfoils)
 
-CT, CP, CQ, Cl, dT, pCT, pCP, Re, aoa = bemt.bemt_axial(prop, pitch, omega)
+dT, dP, P, Cd, Cl, ures, chord_meters, dL, inflow, inflow_ang, eff_aoa, dFx, dFz, Re = bemt.bemt_axial(prop, pitch, omega, tip_loss=False, mach_corr=False)
 
-print "C_P = " + str(pCP)
+print "omega = " + str(omega)
+print "P = " + str(P)
+print "dP = " + str(dP)
+print "chord = " + str(chord_meters)
+print "Cd = " + str(Cd)
+print "Cl = " + str(Cl)
+print "Cl/Cd = " + str(Cl/Cd)
+print "dL = " + str(dL)
+print "inflow = " + str(inflow)
+print "phi = " + str(inflow_ang)
+print "alpha = " + str(eff_aoa*360/2/np.pi)
+print "ures = " + str(ures)
+print "twist = " + str(twist)
+print "dFx = " + str(dFx)
+print "dFz = " + str(dFz)
 print "Thrust = " + str(sum(dT))
 print "Re = " + str(Re)
 
-plt.figure(1)
-plt.plot(r, chord, '-')
-plt.xlabel("radial station, r")
-plt.ylabel("chord length, c/R")
-
-plt.figure(2)
-plt.plot(r, twist * 360/2/np.pi, '-')
-plt.xlabel("radial station, r")
-plt.ylabel("twist, degrees")
-
-plt.show()
+# plt.figure(1)
+# plt.plot(r, chord, '-')
+# plt.xlabel("radial station, r")
+# plt.ylabel("chord")
+# #
+# plt.figure(2)
+# plt.plot(r, twist * 360/2/np.pi, '-')
+# plt.xlabel("radial station, r")
+# plt.ylabel("twist, degrees")
+# #
+# plt.show()
 
 
 

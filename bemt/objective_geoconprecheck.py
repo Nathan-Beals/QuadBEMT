@@ -29,7 +29,6 @@ def objfun(xn, **kwargs):
     int_dy = kwargs['dy']
     int_n_blades = kwargs['n_blades']
     int_airfoils = kwargs['airfoils']
-    int_Clalpha = kwargs['Clalpha']
     int_pitch = kwargs['pitch']
     target_thrust = kwargs['thrust']
     cval_max = kwargs['max_chord']
@@ -57,17 +56,16 @@ def objfun(xn, **kwargs):
         return f, g, fail
 
     prop = propeller.Propeller(int_twist, int_chord, int_radius, int_n_blades, int_r, int_y, int_dr, int_dy,
-                               int_Clalpha, airfoils=int_airfoils)
+                               airfoils=int_airfoils)
 
     try:
-        CT, CP, CQ, Cl, dT, pCT, pCP, Re, aoa = bemt.bemt_axial(prop, int_pitch, omega)
+        dT, P = bemt.bemt_axial(prop, int_pitch, omega, tip_loss=False, mach_corr=False)
     except FloatingPointError:
         fail = 1
         return f, g, fail
 
-    f = pCP
+    f = P
     print omega
-    print "CT = %s" % str(pCT)
     print f
     print "Thrust = %s" % str(sum(dT))
 
@@ -116,11 +114,10 @@ dy = float(radius-root_cutout)/n_elements
 dr = float(1)/n_elements
 y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/radius
-Clalpha = 2 * np.pi
 pitch = 0.0
 airfoils = (('SDA1075', 0.0, 1.0),)
 thrust = 5.22
-max_chord = 0.4
+max_chord = 1.0
 
 ###########################################
 # Set design variable bounds
@@ -146,18 +143,18 @@ omega_start = 5900.0 * 2*np.pi/60
 # Twist at the hub must be less than or equal to arcsin(hub_height/hub_diameter), approx 23 degrees
 theta0_start = 20.0 * 2 * np.pi / 360
 theta0_lower = 0.0 * 2 * np.pi / 360
-theta0_upper = 23.0 * 2 * np.pi / 360
+theta0_upper = 60.0 * 2 * np.pi / 360
 # Chord values at the hub must be less than or equal to the diameter of the hub
 chord0_start = 0.12
-chord0_upper = 0.127
+chord0_upper = 10
 chord0_lower = 0.05
 
 dtwist_start = 0.0 * 2 * np.pi / 360
 dtwist_lower = -10.0 * 2 * np.pi / 360
 dtwist_upper = 10.0 * 2 * np.pi / 360
 dchord_start = 0.0
-dchord_lower = -0.05
-dchord_upper = 0.05
+dchord_lower = -0.1
+dchord_upper = 0.1
 # chord_lower = unit_conversion.in2m(0.25)
 # chord_upper = unit_conversion.in2m(3.0)
 # chord_start = unit_conversion.in2m(0.5)
@@ -179,9 +176,9 @@ print opt_prob
 nsga2 = NSGA2()
 nsga2.setOption('PrintOut', 2)
 nsga2.setOption('PopSize', 372)
-nsga2.setOption('maxGen', 50)
+nsga2.setOption('maxGen', 40)
 nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-      dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
+      dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
 print opt_prob.solution(0)
 
 # conmin = CONMIN()
@@ -192,7 +189,7 @@ print opt_prob.solution(0)
 
 
 # slsqp = SLSQP()
-# slsqp.setOption('IPRINT', -1)
-# slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-#       dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust)
-# print opt_prob.solution(0)
+# slsqp.setOption('IPRINT', 1)
+# slsqp(opt_prob.solution(0), sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
+#       dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
+# print opt_prob.solution(0).solution(0)

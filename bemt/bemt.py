@@ -134,7 +134,6 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     blade_rad = propeller.radius
     twist = np.array(propeller.twist)
 
-    local_angle = pitch + twist
     chord = np.array(propeller.chord)
     dy = propeller.dy
     dr = propeller.dr
@@ -143,6 +142,16 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     n_elements = len(r)
     local_solidity = np.array(propeller.solidity)
 
+    # Due to the possible camber of the airfoils along the span, we need to correct the local angle to include the zero
+    # lift angle of attack. For positively cambered airfoils this will be a negative angle (all values of alpha0 will be
+    # negative. Also find the lift curve slope along the span of the blade. Both quantities are calculated using an
+    # approximate Reynolds number which calculates Re using only the in-plane portion of the freestream velocity.
+    u_t = omega * r * blade_rad
+    Re_approx = u_t * chord / kine_visc
+    Clalpha = propeller.get_Clalpha(Re_approx)
+    alpha0 = propeller.get_alpha0(Re_approx)
+    local_angle = pitch + twist
+
     # Define some other parameters for use in calculations
     v_tip = blade_rad * omega   # Blade tip speed
     lambda_c = v_climb/v_tip    # Climb inflow ratio
@@ -150,9 +159,10 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     # Now handle hover and vertical flight cases
     # First calculate inflow along span by using F = 1 to get initial value not including tip loss
     F = 1
-    local_inflow, rel_inflow_angle, u_resultant = inflow.axial_flight(local_solidity, propeller, lambda_c,
-                                                                      local_angle, v_tip, v_climb, omega, r,
-                                                                      blade_rad, F, spd_snd, mach_corr=mach_corr)
+    local_inflow, rel_inflow_angle, u_resultant, u_p, u_t = inflow.axial_flight(local_solidity, propeller, lambda_c,
+                                                                                local_angle, alpha0, Clalpha, v_tip,
+                                                                                v_climb, omega, r, blade_rad, F,
+                                                                                spd_snd, mach_corr=mach_corr)
     # Now if tip_loss correction is desired, use the F = 1 solution as a starting guess to find the inflow
     if tip_loss:
         converged = np.array([False]*n_elements)
@@ -164,9 +174,9 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
             F = (2/np.pi) * np.arccos(np.exp(-f))
             try:
                 local_inflow, rel_inflow_angle, u_resultant = inflow.axial_flight(local_solidity, propeller, lambda_c,
-                                                                                  local_angle, v_tip, v_climb, omega, r,
-                                                                                  blade_rad, F, spd_snd,
-                                                                                  mach_corr=mach_corr)
+                                                                                  local_angle, alpha0, Clalpha, v_tip,
+                                                                                  v_climb, omega, r, blade_rad, F,
+                                                                                  spd_snd, mach_corr=mach_corr)
             except FloatingPointError:
                 print "ftip = %s" % str(f_tip)
                 print "f = %s" % str(f)
@@ -182,13 +192,8 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
 
     # Retrieve Cl and Cd values according to effective angle of attack along the blades. This will return NaN toward
     # the root
-    # Cl = np.nan_to_num(np.array(propeller.get_Cl(eff_aoa, Re)))
-    # Cd = np.nan_to_num(np.array(propeller.get_Cd(eff_aoa, Re)))
-
-    Cl = np.array(propeller.get_Cl(eff_aoa, Re))
-    Cd = np.array(propeller.get_Cd(eff_aoa, Re))
-    print "Cl = " + str(Cl)
-    print "Cd = " + str(Cd)
+    Cl = np.nan_to_num(np.array(propeller.get_Cl(eff_aoa, Re)))
+    Cd = np.nan_to_num(np.array(propeller.get_Cd(eff_aoa, Re)))
 
     # Calculate forces
     dL = 0.5*dens*u_resultant**2*chord*Cl
@@ -196,10 +201,6 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
 
     dFz = dL*np.cos(rel_inflow_angle) - dD*np.sin(rel_inflow_angle)
     dFx = dD*np.cos(rel_inflow_angle) + dL*np.sin(rel_inflow_angle)
-
-    if np.isnan(dFz).any():
-        print dFz
-        print Cl
 
     dT = n_blades * dFz * dy
     dQ = n_blades * dFx * y * dy
@@ -215,7 +216,8 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
 
     prop_CT = T / (dens * (omega/2/np.pi)**2 * (blade_rad*2)**4)
     prop_CP = P / (dens * (omega/2/np.pi)**3 * (blade_rad*2)**5)
-    return CT, CP, CQ, Cl, dT, prop_CT, prop_CP, Re, eff_aoa
+    return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
+    # return dT, P
 
 
 
