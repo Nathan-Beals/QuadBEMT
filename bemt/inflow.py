@@ -17,27 +17,22 @@ def axial_flight(local_solidity, prop, lambda_c, local_angle, alpha0, Clalpha, v
                  mach_corr):
     u_t = omega * r * blade_rad
     local_mach = u_t / spd_snd
+    this_Clalpha = np.array(Clalpha)
 
     # Mach number correction
     if mach_corr:
-        Clalpha /= np.sqrt(1 - local_mach**2)
+        this_Clalpha /= np.sqrt(1 - local_mach**2)
     with np.errstate(invalid='raise'):
         try:
-            local_inflow = np.sqrt((local_solidity*Clalpha/(16*F) - lambda_c/2)**2 +
-                               (local_solidity*Clalpha/(8*F)*(local_angle-alpha0)*r)) - (local_solidity*Clalpha/(16*F)) + \
-                               (lambda_c/2)
-            if any(np.isnan(local) for local in local_inflow) or any(local < 0.0 for local in local_inflow):
-                print "local_inflow = " + str(local_inflow)
-                raise FloatingPointError
+            local_inflow = np.sqrt((local_solidity*this_Clalpha/(16*F) - lambda_c/2)**2 +
+                                   (local_solidity*this_Clalpha/(8*F)*(local_angle-alpha0)*r)) - \
+                           (local_solidity*this_Clalpha/(16*F)) + (lambda_c/2)
         except FloatingPointError:
-            print "local_solidity = %s" % str(local_solidity)
-            print "Clalpha = %s" % str(Clalpha)
-            print "lambda_c = %s" % str(lambda_c)
-            print "theta = %s" % str(local_angle)
-            print "r = %s" % str(r)
-            print "F = %s" % str(F)
+            print "FP error in inflow calculation"
             raise
-        # print "local_inflow = %s" % local_inflow
+        if any(np.isnan(local) for local in local_inflow):
+            print "Local inflow has nan value"
+            raise FloatingPointError
 
     v_induced = local_inflow * v_tip - v_climb
     u_p = v_climb + v_induced

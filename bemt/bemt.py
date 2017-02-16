@@ -148,8 +148,9 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     # approximate Reynolds number which calculates Re using only the in-plane portion of the freestream velocity.
     u_t = omega * r * blade_rad
     Re_approx = u_t * chord / kine_visc
-    Clalpha = propeller.get_Clalpha(Re_approx)
-    alpha0 = propeller.get_alpha0(Re_approx)
+    # Clalpha = propeller.get_Clalpha(Re_approx)
+    # alpha0 = propeller.get_alpha0(Re_approx)
+    Clalpha, alpha0 = propeller.get_Clalpha_alpha0(Re_approx)
     local_angle = pitch + twist
 
     # Define some other parameters for use in calculations
@@ -159,7 +160,7 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     # Now handle hover and vertical flight cases
     # First calculate inflow along span by using F = 1 to get initial value not including tip loss
     F = 1
-    local_inflow, rel_inflow_angle, u_resultant, u_p, u_t = inflow.axial_flight(local_solidity, propeller, lambda_c,
+    local_inflow, rel_inflow_angle, u_resultant = inflow.axial_flight(local_solidity, propeller, lambda_c,
                                                                                 local_angle, alpha0, Clalpha, v_tip,
                                                                                 v_climb, omega, r, blade_rad, F,
                                                                                 spd_snd, mach_corr=mach_corr)
@@ -178,9 +179,6 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
                                                                                   v_climb, omega, r, blade_rad, F,
                                                                                   spd_snd, mach_corr=mach_corr)
             except FloatingPointError:
-                print "ftip = %s" % str(f_tip)
-                print "f = %s" % str(f)
-                print "phi = %s" % rel_inflow_angle
                 raise
             converged = abs((local_inflow - local_inflow_old)/local_inflow) < 0.0005
 
@@ -216,8 +214,8 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
 
     prop_CT = T / (dens * (omega/2/np.pi)**2 * (blade_rad*2)**4)
     prop_CP = P / (dens * (omega/2/np.pi)**3 * (blade_rad*2)**5)
-    return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
-    # return dT, P
+    #return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
+    return dT, P
 
 
 

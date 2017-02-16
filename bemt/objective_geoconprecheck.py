@@ -50,7 +50,6 @@ def objfun(xn, **kwargs):
 
     # Calculate geometric constraint values and return immediately if there are any failures
     g[1:] = get_geocons(int_chord, cval_max, int_radius)
-    print g[1:]
     if any(geocon > 0.0 for geocon in g[1:]):
         print "geocons violated"
         return f, g, fail
@@ -115,9 +114,9 @@ dr = float(1)/n_elements
 y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/radius
 pitch = 0.0
-airfoils = (('SDA1075', 0.0, 1.0),)
-thrust = 5.22
-max_chord = 1.0
+airfoils = (('SDA1075_494p', 0.0, 1.0),)
+thrust = 4.94
+max_chord = 0.4
 
 ###########################################
 # Set design variable bounds
@@ -126,13 +125,17 @@ chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782
                   0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
 twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
                   18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
+dtwist_start = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
+dchord_start = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
+theta0_start = twist[0]
+chord0_start = chord[0]
 # chord = np.array([chord[i] for i in [0, 4, 8, 12, 17]])
 # twist = np.array([twist[i] for i in [0, 4, 8, 12, 17]])
 # chord = np.array([chord[i] for i in [12]])
 # twist = np.array([twist[i] for i in [12]])
 omega_lower = 5000.0 * 2*np.pi/60
 omega_upper = 6500.0 * 2*np.pi/60
-omega_start = 5900.0 * 2*np.pi/60
+omega_start = 6100.0 * 2*np.pi/60
 # twist_lower = 0.0 * 2*np.pi/360
 # twist_upper = 50.0 * 2*np.pi/360
 # twist_start = twist
@@ -141,18 +144,18 @@ omega_start = 5900.0 * 2*np.pi/60
 # chord_start = chord
 
 # Twist at the hub must be less than or equal to arcsin(hub_height/hub_diameter), approx 23 degrees
-theta0_start = 20.0 * 2 * np.pi / 360
+#theta0_start = 20.0 * 2 * np.pi / 360
 theta0_lower = 0.0 * 2 * np.pi / 360
 theta0_upper = 60.0 * 2 * np.pi / 360
 # Chord values at the hub must be less than or equal to the diameter of the hub
-chord0_start = 0.12
+#chord0_start = 0.12
 chord0_upper = 10
 chord0_lower = 0.05
 
-dtwist_start = 0.0 * 2 * np.pi / 360
+#dtwist_start = 0.0 * 2 * np.pi / 360
 dtwist_lower = -10.0 * 2 * np.pi / 360
 dtwist_upper = 10.0 * 2 * np.pi / 360
-dchord_start = 0.0
+#dchord_start = 0.0
 dchord_lower = -0.1
 dchord_upper = 0.1
 # chord_lower = unit_conversion.in2m(0.25)
@@ -190,6 +193,6 @@ print opt_prob.solution(0)
 
 # slsqp = SLSQP()
 # slsqp.setOption('IPRINT', 1)
-# slsqp(opt_prob.solution(0), sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-#       dr=dr, y=y, r=r, Clalpha=Clalpha, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
-# print opt_prob.solution(0).solution(0)
+# slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
+#       dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
+# print opt_prob.solution(0)
