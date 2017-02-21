@@ -1,6 +1,7 @@
 import numpy as np
 import inflow
 from unit_conversion import rad2deg
+import resource
 
 # Define some constants
 RAD_EARTH = 6371000    # Radius of Earth in meters
@@ -214,8 +215,8 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
 
     prop_CT = T / (dens * (omega/2/np.pi)**2 * (blade_rad*2)**4)
     prop_CP = P / (dens * (omega/2/np.pi)**3 * (blade_rad*2)**5)
-    #return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
-    return dT, P
+    return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
+    #return dT, P
 
 
 

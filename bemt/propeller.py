@@ -2,6 +2,7 @@ import numpy as np
 from lookup_table import create_table, interpolate
 from scipy.interpolate import griddata
 from unit_conversion import rad2deg
+import resource
 
 
 class Propeller(object):
@@ -22,6 +23,15 @@ class Propeller(object):
         if solidity is None:
             self.chord = chord
             self.solidity = n_blades*chord/(2 * np.pi * y)
+            # try:
+            #     self.solidity = n_blades*chord/(2 * np.pi * y)
+            # except ValueError:
+            #     print "chord = " + str(chord)
+            #     print "y = " + str(y)
+            #     print "chord len = " + str(len(chord))
+            #     print "y len = " + str(len(y))
+            #     print "r len = " + str(len(r))
+            #     raise
         else:
             # Handle case for when we just want to pass a solidity
             self.solidity = solidity
