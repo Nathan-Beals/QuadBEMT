@@ -131,26 +131,76 @@ def main():
     ############################################
 
     ########## 0.8 crossover 150 gen ############
-    omega = 526.938693
-    theta0 = 0.434501
-    chord0 = 0.376514
-    dtwist = np.array([-0.101670, -0.153288, 0.063368, 0.173516, -0.162831, 0.086124, -0.122493, 0.103849, 0.053405,
-                       -0.134726, -0.000400, 0.022519, 0.006426, -0.029408, 0.016352, -0.082736, 0.061399])
-    dchord = np.array([-0.010467, -0.015021, -0.019865, 0.009399, -0.017646, -0.018732, -0.014597, -0.002709, -0.010477,
-                       -0.002962, -0.005953, -0.015082, -0.004879, 0.010107, -0.015014, -0.015507, -0.013003])
+    # omega = 526.938693
+    # theta0 = 0.434501
+    # chord0 = 0.376514
+    # dtwist = np.array([-0.101670, -0.153288, 0.063368, 0.173516, -0.162831, 0.086124, -0.122493, 0.103849, 0.053405,
+    #                    -0.134726, -0.000400, 0.022519, 0.006426, -0.029408, 0.016352, -0.082736, 0.061399])
+    # dchord = np.array([-0.010467, -0.015021, -0.019865, 0.009399, -0.017646, -0.018732, -0.014597, -0.002709, -0.010477,
+    #                    -0.002962, -0.005953, -0.015082, -0.004879, 0.010107, -0.015014, -0.015507, -0.013003])
+    #############################################
+
+    ######### COBYLA Hover ######################
+    # omega = 622.349535
+    # theta0 = 0.739108
+    # chord0 = 0.119187
+    # dtwist = np.array([0.042217, -0.034244, -0.032924, -0.030217, -0.170066, -0.047434, -0.037011, -0.033571, -0.028314,
+    #                    -0.023451, -0.019590, -0.016064, -0.011613, 0.005313, 0.007649, -0.028974, -0.174099])
+    # dchord = np.array([0.011593, 0.019999, 0.019974, 0.019972, -0.001083, -0.002670, -0.006322, 0.004654, -0.004091,
+    #                    -0.001713, -0.000151, -0.003787, -0.002032, -0.001593, -0.001399, -0.014254, -0.019930])
+    #############################################
+
+    ########### NSGAII Hover 10 Elements ########
+    # omega = 525.181679
+    # theta0 = 0.422403
+    # chord0 = 0.303573
+    # dtwist = np.array([-0.038560, -0.006249, -0.152301, 0.057769, -0.008609, -0.014603, 0.005184, -0.131540, 0.076675])
+    # dchord = np.array([-0.011341, -0.016265, -0.016849, -0.004242, 0.019488, -0.005291, 0.000518, -0.009720, 0.007705])
 
 
     ########### DA4002 ########################
-    # omega = 5943 * 2*np.pi/60
-    # twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
-    #                   18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
+    omega = 5943 * 2*np.pi/60
+    twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
+                      18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
+    chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787, 0.1786,
+                      0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
+    dtwist_base = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
+    dchord_base = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
+    twist0_base = twist[0]
+    chord0_base = chord[0]
+    ###########################################
+
+    ######### Low Element DA4002 ##############
+    # omega = 5943.0 * 2*np.pi/60
     # chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787, 0.1786,
     #                   0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
-    # dtwist = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
-    # dchord = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
-    # theta0 = twist[0]
+    # chord = np.array([chord[i] for i in [0, 4, 8, 12, 16]])
+    # twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
+    #                   18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
+    # twist = np.array([twist[i] for i in [0, 4, 8, 12, 16]])
+    #
     # chord0 = chord[0]
-    ###########################################
+    # twist0 = twist[0]
+    # dchord = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
+    # dtwist = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
+    #
+    # chord0_base = np.array(chord0)
+    # twist0_base = np.array(twist0)
+    # dchord_base = np.array(dchord)
+    # dtwist_base = np.array(dtwist)
+
+
+    ############################################
+
+    ######## Low Element SLSQP Fixed twist #####
+    # chord0 = 0.062556
+    # dchord = np.array([0.007283, 0.050000, 0.050000, 0.050000])
+    ############################################
+
+    ######## Low Element SLSQP Fixed Chord #####
+    # twist0 = 0.583744
+    # dtwist = np.array([-0.111829, -0.114950, -0.075913, -0.066609])
+    ############################################
 
     def calc_twist_dist(t0, dt_vec):
         t = np.array([0.0]*(len(dt_vec)+1))
@@ -166,47 +216,108 @@ def main():
             c[i+1] = c[i] + dc
         return c
 
-    twist = calc_twist_dist(theta0, dtwist)
-    chord = calc_chord_dist(chord0, dchord)
+    # twist = calc_twist_dist(twist0, dtwist)
+    # chord = calc_chord_dist(chord0, dchord)
+
+    twist_base = calc_twist_dist(twist0_base, dtwist_base)
+    chord_base = calc_chord_dist(chord0_base, dchord_base)
 
     chord_meters = chord * radius
+    chord_base_meters = chord_base * radius
 
     # Run BEMT on propeller
     prop = propeller.Propeller(twist, chord_meters, radius, n_blades, r, y, dr, dy, airfoils=airfoils)
 
-    dT, dP, P, Cd, Cl, ures, chord_meters, dL, inflow, inflow_ang, eff_aoa, dFx, dFz, Re = bemt.bemt_axial(prop, pitch, omega, tip_loss=False, mach_corr=False)
-    #dT, P = bemt.bemt_axial(prop, pitch, omega, tip_loss=False, mach_corr=False)
+    # Base prop
+    base_prop = propeller.Propeller(twist_base, chord_base_meters, radius, n_blades, r, y, dr, dy, airfoils=airfoils)
 
-    print "omega = " + str(omega)
-    print "P = " + str(P)
-    print "dP = " + str(dP)
-    print "chord = " + str(chord_meters)
-    print "Cd = " + str(Cd)
-    print "Cl = " + str(Cl)
-    print "Cl/Cd = " + str(Cl/Cd)
-    print "dL = " + str(dL)
-    print "inflow = " + str(inflow)
-    print "phi = " + str(inflow_ang)
-    print "alpha = " + str(eff_aoa*360/2/np.pi)
-    print "ures = " + str(ures)
-    print "twist = " + str(twist)
-    print "dFx = " + str(dFx)
-    print "dFz = " + str(dFz)
-    print "Thrust = " + str(sum(dT))
-    print "Power = " + str(sum(dP))
-    print "Re = " + str(Re)
+    dT, dP, P, Cd, Cl, ures, chord_meters, dL, inflow, inflow_ang, eff_aoa, dFx, dFz, Re, Cd_approx = \
+        bemt.bemt_axial(prop, pitch, omega, tip_loss=False, mach_corr=False, output='long')
+
+    base_vals = bemt.bemt_axial(base_prop, pitch, omega, tip_loss=False, mach_corr=False, output='short')
+    base_vals_newbemt = bemt.bemt_axial_alt(base_prop, pitch, omega, tip_loss=False, mach_corr=False)
+
+    print "Thrust_old = " + str(sum(base_vals[0]))
+    print "Power_old = " + str(base_vals[1])
+    print "Thrust_new = " + str(base_vals_newbemt[0])
+    print "Power new = " + str(base_vals_newbemt[1])
+    print "Power new alt = " + str(base_vals_newbemt[2])
+    print "Thrust new alt = " + str(base_vals_newbemt[3])
+
+    # print "omega = " + str(omega)
+    # print "P = " + str(P)
+    # print "dP = " + str(dP)
+    # print "chord = " + str(chord_meters)
+    # print "Cd = " + str(Cd)
+    # print "Cd_approx = " + str(Cd_approx)
+    # print "Cl = " + str(Cl)
+    # print "Cl/Cd = " + str(Cl/Cd)
+    # print "dL = " + str(dL)
+    # print "inflow = " + str(inflow)
+    # print "phi = " + str(inflow_ang)
+    # print "sin(phi) = " + str(np.sin(inflow_ang))
+    # print "cos(phi) = " + str(np.cos(inflow_ang))
+    # print "alpha = " + str(eff_aoa*360/2/np.pi)
+    # print "ures = " + str(ures)
+    # print "twist = " + str(twist)
+    # print "dFx = " + str(dFx)
+    # print "dFz = " + str(dFz)
+    # print "Thrust = " + str(sum(dT))
+    # print "Power = " + str(sum(dP))
+    # print "Re = " + str(Re)
+    # print "Re_base = " + str(base_vals[13])
+
+    # plt.figure(1)
+    # plt.plot(r, chord, '-b')
+    # plt.plot(r, chord_base, '-r')
+    # plt.xlabel("radial station, r")
+    # plt.ylabel("chord")
+    # plt.legend(['optimized', 'base'])
     #
-    plt.figure(1)
-    plt.plot(r, chord, '-')
-    plt.xlabel("radial station, r")
-    plt.ylabel("chord")
+    # plt.figure(2)
+    # plt.plot(r, twist * 360/2/np.pi, '-b')
+    # plt.plot(r, twist_base * 360/2/np.pi, '-r')
+    # plt.xlabel("radial station, r")
+    # plt.ylabel("twist, degrees")
+    # plt.legend(['optimized', 'base'], loc=2)
     #
-    plt.figure(2)
-    plt.plot(r, twist * 360/2/np.pi, '-')
-    plt.xlabel("radial station, r")
-    plt.ylabel("twist, degrees")
+    # plt.figure(3)
+    # plt.plot(r, inflow, '-b')
+    # plt.plot(r, base_vals[8], '-r')
+    # plt.xlabel("radial station, r")
+    # plt.ylabel("inflow")
+    # plt.ylim([0, 0.15])
+    # plt.legend(['optimized', 'base'], loc=2)
     #
-    plt.show()
+    # plt.figure(4)
+    # plt.plot(r, Cl/Cd, '-b')
+    # plt.plot(r, base_vals[4]/base_vals[3], '-r')
+    # plt.xlabel("radial station, r")
+    # plt.ylabel("Cl/Cd")
+    # plt.legend(['optimized', 'base'], loc=2)
+    #
+    # plt.figure(5)
+    # plt.plot(r, Re, '-b')
+    # plt.plot(r, base_vals[13], '-r')
+    # plt.xlabel("radial station, r")
+    # plt.ylabel("Re")
+    # plt.legend(['optimized', 'base'], loc=2)
+    #
+    # plt.figure(6)
+    # plt.plot(r, ures, '-b')
+    # plt.plot(r, base_vals[5], '-r')
+    # plt.xlabel("radial station, r")
+    # plt.ylabel("ures")
+    # plt.legend(['optimized', 'base'], loc=2)
+    #
+    # plt.figure(7)
+    # plt.plot(r, Cl, '-b')
+    # plt.plot(r, base_vals[4], '-r')
+    # plt.xlabel("radial station, r")
+    # plt.ylabel("Lift")
+    # plt.legend(['optimized', 'base'], loc=2)
+    #
+    # plt.show()
 
 if __name__ == '__main__':
     main()

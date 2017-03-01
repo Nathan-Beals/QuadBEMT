@@ -22,7 +22,8 @@ class Propeller(object):
         """
         if solidity is None:
             self.chord = chord
-            self.solidity = n_blades*chord/(2 * np.pi * y)
+            #self.solidity = n_blades*chord/(2 * np.pi * y)
+            self.solidity = n_blades*chord/np.pi/radius
             # try:
             #     self.solidity = n_blades*chord/(2 * np.pi * y)
             # except ValueError:

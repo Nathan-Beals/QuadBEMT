@@ -5,6 +5,7 @@ from pyOpt import Optimization
 from pyOpt import NSGA2
 from pyOpt import SLSQP
 from pyOpt import CONMIN
+from pyOpt import COBYLA
 import numpy as np
 import resource
 import sys
@@ -22,7 +23,7 @@ def counted(f):
     return wrapped
 
 
-#@ counted
+@counted
 def objfun(xn, **kwargs):
 
     #print 'objfun called'
@@ -37,6 +38,8 @@ def objfun(xn, **kwargs):
     int_pitch = kwargs['pitch']
     target_thrust = kwargs['thrust']
     cval_max = kwargs['max_chord']
+    tip_loss = kwargs['tip_loss']
+    mach_corr = kwargs['mach_corr']
     omega = xn[0]
     twist0 = xn[1]
     chord0 = xn[2]*int_radius
@@ -63,7 +66,7 @@ def objfun(xn, **kwargs):
                                airfoils=int_airfoils)
 
     try:
-        dT, P = bemt.bemt_axial(prop, int_pitch, omega, tip_loss=False, mach_corr=False)
+        dT, P = bemt.bemt_axial(prop, int_pitch, omega, tip_loss=tip_loss, mach_corr=mach_corr)
     except FloatingPointError:
         fail = 1
         return f, g, fail
@@ -112,7 +115,7 @@ def main():
     # Define some values
     ###########################################
     n_blades = 2
-    n_elements = 18
+    n_elements = 10
     radius = unit_conversion.in2m(9.0)/2
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
@@ -127,21 +130,21 @@ def main():
     ###########################################
     # Set design variable bounds
     ###########################################
-    chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787, 0.1786,
-                      0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
-    twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
-                      18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
-    dtwist_start = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
-    dchord_start = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
-    theta0_start = twist[0]
-    chord0_start = chord[0]
+    # chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787, 0.1786,
+    #                   0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
+    # twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
+    #                   18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
+    # dtwist_start = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
+    # dchord_start = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
+    # theta0_start = twist[0]
+    # chord0_start = chord[0]
     # chord = np.array([chord[i] for i in [0, 4, 8, 12, 17]])
     # twist = np.array([twist[i] for i in [0, 4, 8, 12, 17]])
     # chord = np.array([chord[i] for i in [12]])
     # twist = np.array([twist[i] for i in [12]])
     omega_lower = 5000.0 * 2*np.pi/60
     omega_upper = 6500.0 * 2*np.pi/60
-    omega_start = 5990.0 * 2*np.pi/60
+    omega_start = 5943.0 * 2*np.pi/60
     # twist_lower = 0.0 * 2*np.pi/360
     # twist_upper = 50.0 * 2*np.pi/360
     # twist_start = twist
@@ -150,18 +153,18 @@ def main():
     # chord_start = chord
 
     # Twist at the hub must be less than or equal to arcsin(hub_height/hub_diameter), approx 23 degrees
-    #theta0_start = 20.0 * 2 * np.pi / 360
+    theta0_start = 20.0 * 2 * np.pi / 360
     theta0_lower = 0.0 * 2 * np.pi / 360
     theta0_upper = 60.0 * 2 * np.pi / 360
     # Chord values at the hub must be less than or equal to the diameter of the hub
-    #chord0_start = 0.12
+    chord0_start = 0.12
     chord0_upper = 10
     chord0_lower = 0.05
 
-    #dtwist_start = 0.0 * 2 * np.pi / 360
+    dtwist_start = 0.0 * 2 * np.pi / 360
     dtwist_lower = -10.0 * 2 * np.pi / 360
     dtwist_upper = 10.0 * 2 * np.pi / 360
-    #dchord_start = 0.0
+    dchord_start = 0.0
     dchord_lower = -0.02
     dchord_upper = 0.02
     # chord_lower = unit_conversion.in2m(0.25)
@@ -185,25 +188,41 @@ def main():
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
     nsga2.setOption('PopSize', 372)
-    nsga2.setOption('maxGen', 150)
-    nsga2.setOption('pCross_real', 0.8)
+    nsga2.setOption('maxGen', 100)
+    nsga2.setOption('pCross_real', 0.85)
     #nsga2.setOption('xinit', 1)
     #nsga2.setOption('seed', 0.541)
     nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-          dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
+          dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=False,
+          mach_corr=False)
     print opt_prob.solution(0)
 
     # conmin = CONMIN()
     # conmin.setOption('IPRINT', 1)
     # conmin(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius,
-    #        dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
+    #        dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=False,
+    #        mach_corr=False)
     # print opt_prob.solution(0)
 
 
     # slsqp = SLSQP()
     # slsqp.setOption('IPRINT', 1)
+    # slsqp.setOption('MAXIT', 200)
+    # slsqp.setOption('ACC', 1e-7)
     # slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-    #       dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
+    #       dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=True,
+    #       mach_corr=True)
+    # print opt_prob.solution(0)
+
+    # cobyla = COBYLA()
+    # cobyla.setOption('IPRINT', 1)
+    # cobyla(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy, dr=dr,
+    #        y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=True, mach_corr=True)
+    # print opt_prob.solution(0)
+
+    # snopt = SNOPT()
+    # snopt(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y,
+    #       r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord)
     # print opt_prob.solution(0)
 
 if __name__ == "__main__":
