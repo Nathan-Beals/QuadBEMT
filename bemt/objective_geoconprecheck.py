@@ -28,51 +28,49 @@ def objfun(xn, **kwargs):
 
     #print 'objfun called'
 
-    int_radius = kwargs['radius']
-    int_r = kwargs['r']
-    int_y = kwargs['y']
-    int_dr = kwargs['dr']
-    int_dy = kwargs['dy']
-    int_n_blades = kwargs['n_blades']
-    int_airfoils = kwargs['airfoils']
-    int_pitch = kwargs['pitch']
+    radius = kwargs['radius']
+    r = kwargs['r']
+    y = kwargs['y']
+    dr = kwargs['dr']
+    dy = kwargs['dy']
+    n_blades = kwargs['n_blades']
+    airfoils = kwargs['airfoils']
+    pitch = kwargs['pitch']
     target_thrust = kwargs['thrust']
     cval_max = kwargs['max_chord']
     tip_loss = kwargs['tip_loss']
     mach_corr = kwargs['mach_corr']
     omega = xn[0]
     twist0 = xn[1]
-    chord0 = xn[2]*int_radius
-    dtwist = np.array(xn[3:len(int_r)+2])
-    dchord = np.array([x*int_radius for x in xn[len(int_r)+2:2*len(int_r)+2]])
+    chord0 = xn[2]*radius
+    dtwist = np.array(xn[3:len(r)+2])
+    dchord = np.array([x*radius for x in xn[len(r)+2:2*len(r)+2]])
 
-    int_twist = calc_twist_dist(twist0, dtwist)
-    int_chord = calc_chord_dist(chord0, dchord)
+    twist = calc_twist_dist(twist0, dtwist)
+    chord = calc_chord_dist(chord0, dchord)
 
     # int_twist = np.array(xn[:len(r)])
     # int_chord = np.array([x*radius for x in xn[len(r):]])
 
-    f = 1000
+    f = 1000.
     fail = 0
-    g = [1.0] * (2*len(int_r)+1)
+    g = [1.0] * (2*len(r)+1)
 
     # Calculate geometric constraint values and return immediately if there are any failures
-    g[1:] = get_geocons(int_chord, cval_max, int_radius)
+    g[1:] = get_geocons(chord, cval_max, radius)
     if any(geocon > 0.0 for geocon in g[1:]):
         print "geocons violated"
         return f, g, fail
 
-    prop = propeller.Propeller(int_twist, int_chord, int_radius, int_n_blades, int_r, int_y, int_dr, int_dy,
-                               airfoils=int_airfoils)
+    prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy, airfoils=airfoils)
 
     try:
-        dT, P = bemt.bemt_axial(prop, int_pitch, omega, tip_loss=tip_loss, mach_corr=mach_corr)
+        dT, P = bemt.bemt_axial(prop, pitch, omega, tip_loss=tip_loss, mach_corr=mach_corr)
     except FloatingPointError:
         fail = 1
         return f, g, fail
 
     f = P
-    #print omega
     print f
     print "Thrust = %s" % str(sum(dT))
 
@@ -115,7 +113,7 @@ def main():
     # Define some values
     ###########################################
     n_blades = 2
-    n_elements = 10
+    n_elements = 8
     radius = unit_conversion.in2m(9.0)/2
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
@@ -123,9 +121,10 @@ def main():
     y = root_cutout + dy*np.arange(1, n_elements+1)
     r = y/radius
     pitch = 0.0
-    airfoils = (('SDA1075_494p', 0.0, 1.0),)
+    #airfoils = (('SDA1075_494p', 0.0, 1.0),)
+    airfoils = (('simple', 0.0, 1.0),)
     thrust = 4.94
-    max_chord = 0.4
+    max_chord = 0.5
 
     ###########################################
     # Set design variable bounds
@@ -142,8 +141,8 @@ def main():
     # twist = np.array([twist[i] for i in [0, 4, 8, 12, 17]])
     # chord = np.array([chord[i] for i in [12]])
     # twist = np.array([twist[i] for i in [12]])
-    omega_lower = 5000.0 * 2*np.pi/60
-    omega_upper = 6500.0 * 2*np.pi/60
+    omega_lower = 4500.0 * 2*np.pi/60
+    omega_upper = 7000.0 * 2*np.pi/60
     omega_start = 5943.0 * 2*np.pi/60
     # twist_lower = 0.0 * 2*np.pi/360
     # twist_upper = 50.0 * 2*np.pi/360
@@ -165,8 +164,8 @@ def main():
     dtwist_lower = -10.0 * 2 * np.pi / 360
     dtwist_upper = 10.0 * 2 * np.pi / 360
     dchord_start = 0.0
-    dchord_lower = -0.02
-    dchord_upper = 0.02
+    dchord_lower = -0.1
+    dchord_upper = 0.1
     # chord_lower = unit_conversion.in2m(0.25)
     # chord_upper = unit_conversion.in2m(3.0)
     # chord_start = unit_conversion.in2m(0.5)
@@ -187,8 +186,8 @@ def main():
 
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
-    nsga2.setOption('PopSize', 372)
-    nsga2.setOption('maxGen', 100)
+    nsga2.setOption('PopSize', 5000)
+    nsga2.setOption('maxGen', 1000)
     nsga2.setOption('pCross_real', 0.85)
     #nsga2.setOption('xinit', 1)
     #nsga2.setOption('seed', 0.541)

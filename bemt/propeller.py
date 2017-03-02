@@ -22,24 +22,17 @@ class Propeller(object):
         """
         if solidity is None:
             self.chord = chord
-            #self.solidity = n_blades*chord/(2 * np.pi * y)
             self.solidity = n_blades*chord/np.pi/radius
-            # try:
-            #     self.solidity = n_blades*chord/(2 * np.pi * y)
-            # except ValueError:
-            #     print "chord = " + str(chord)
-            #     print "y = " + str(y)
-            #     print "chord len = " + str(len(chord))
-            #     print "y len = " + str(len(y))
-            #     print "r len = " + str(len(r))
-            #     raise
+            #self.solidity = n_blades*chord/2/np.pi/y
         else:
             # Handle case for when we just want to pass a solidity
             self.solidity = solidity
             self.chord = solidity*np.pi*radius/n_blades
 
         if airfoils is None:
-            self.airfoils = (('simple', 0, 1),)
+            self.airfoils = (('simple', 0., 1.),)
+        elif sorted(airfoils) == sorted((('simple', 0.0, 1.0),)):
+            self.airfoils = airfoils
         else:
             self.airfoils = airfoils
             self.Cl_tables = {}
@@ -103,6 +96,8 @@ class Propeller(object):
         :return: Lift curve slopes for the airfoil sections along the span of the blade.
         """
         airfoil = self.airfoils[0][0]
+        if airfoil == 'simple':
+            return np.ones(len(Re))*2*np.pi, np.zeros(len(Re))
         table = self.Cl_tables[airfoil]
         alfas = [0.0]*len(Re) + [5.0]*len(Re)
         points2interp = zip(alfas, np.concatenate((Re, Re)))
@@ -134,15 +129,15 @@ class Propeller(object):
     #             i += 1
     #         return Cl
 
-    def get_Cl(self, aoa, Re):
+    def get_Cl(self, aoa, Re, method='regular'):
         """
         :param aoa: Angle of attack in radians, numpy array along the span
         :param Re: Reynolds number, numpy array along the span
         :return: Cl values along the span
         """
         aoa_deg = aoa * 360 / 2 / np.pi
-        if self.airfoils == ('simple', 0, 1):
-            return 2*np.pi * aoa
+        if self.airfoils[0][0] == 'simple':
+            return 2*np.pi*aoa
         else:
             airfoil = self.airfoils[0][0]
             table = self.Cl_tables[airfoil]
@@ -176,7 +171,7 @@ class Propeller(object):
         :return: Cd along the span
         """
         aoa_deg = aoa * 360 / 2 / np.pi
-        if self.airfoils == ('simple', 0, 1):
+        if self.airfoils[0][0] == 'simple':
             return 0.02 - 0.0216*aoa + 0.400*aoa**2
         else:
             airfoil = self.airfoils[0][0]
