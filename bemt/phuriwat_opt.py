@@ -84,6 +84,7 @@ def objfun_const_chord(xn, **kwargs):
     target_thrust = kwargs['thrust']
     tip_loss = kwargs['tip_loss']
     mach_corr = kwargs['mach_corr']
+    allowable_Res = kwargs['allowable_Res']
     omega = kwargs['omega']
     chord = kwargs['chord']*radius
 
@@ -101,7 +102,7 @@ def objfun_const_chord(xn, **kwargs):
                                airfoils=airfoils)
 
     try:
-        dT, P = bemt.bemt_axial(prop, pitch, omega, tip_loss=tip_loss, mach_corr=mach_corr)
+        dT, P = bemt.bemt_axial(prop, pitch, omega, allowable_Res=allowable_Res, tip_loss=tip_loss, mach_corr=mach_corr)
     except FloatingPointError:
         fail = 1
         return f, g, fail
@@ -161,6 +162,7 @@ def main():
     pitch = 0.0
     #airfoils = (('SDA1075_494p', 0.0, 1.0),)
     airfoils = (('simple', 0.0, 1.0),)
+    allowable_Res = [100000.]
     thrust = 6.14
     max_chord = 100
 
@@ -222,7 +224,7 @@ def main():
     [fstr, xstr, inform] = slsqp1(opt_prob_ft, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
                                   root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                   airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=False,
-                                  mach_corr=False, omega=omega, twist=twist)
+                                  mach_corr=False, omega=omega, twist=twist, allowable_Res=allowable_Res)
     print opt_prob_ft.solution(0)
     print "fstr = " + str(fstr)
     print "xstr = " + str(xstr)

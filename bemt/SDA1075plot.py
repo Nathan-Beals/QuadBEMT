@@ -1,5 +1,6 @@
 from lookup_table import create_table
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 alphas, reynolds_numbers, CLs, CDs = create_table('SDA1075_494p')
@@ -54,6 +55,8 @@ for i, re_num in enumerate(reynolds_numbers):
         Re100k_CD.append(CDs[i])
         Re100k_alpha.append(alphas[i])
 
+CD_theory = [0.02 - 0.0216*(alpha*2*np.pi/360) + 0.600*(alpha*2*np.pi/360)**2 for alpha in Re100k_alpha]
+
 plt.figure(1)
 plt.plot(Re20k_CD, Re20k_CL, Re30k_CD, Re30k_CL, Re40k_CD, Re40k_CL, Re50k_CD, Re50k_CL, Re60k_CD, Re60k_CL, Re100k_CD, Re100k_CL)
 plt.xlim([0.00, 0.05])
@@ -68,6 +71,14 @@ plt.xlim([-10., 25.])
 plt.ylim([-1.0, 2.0])
 plt.xlabel('Angle of attack')
 plt.ylabel('CL')
+plt.legend(["Re=20k", "Re=30k", "Re=40k", "Re=50k", "Re=60k", "Re=100k"], loc='upper left')
+
+plt.figure(3)
+plt.plot(Re20k_alpha, Re20k_CD, Re30k_alpha, Re30k_CD, Re40k_alpha, Re40k_CD, Re50k_alpha, Re50k_CD, Re60k_alpha, Re60k_CD, Re100k_alpha, Re100k_CD)
+plt.xlim([-10., 25.])
+# plt.ylim([-1.0, 2.0])
+plt.xlabel('Angle of attack')
+plt.ylabel('CD')
 plt.legend(["Re=20k", "Re=30k", "Re=40k", "Re=50k", "Re=60k", "Re=100k"], loc='upper left')
 
 plt.show()

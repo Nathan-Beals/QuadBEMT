@@ -1,7 +1,7 @@
 import numpy as np
 from lookup_table import create_table, interpolate
 from scipy.interpolate import griddata
-from unit_conversion import rad2deg
+import unit_conversion
 import resource
 
 
@@ -23,7 +23,6 @@ class Propeller(object):
         if solidity is None:
             self.chord = chord
             self.solidity = n_blades*chord/np.pi/radius
-            #self.solidity = n_blades*chord/2/np.pi/y
         else:
             # Handle case for when we just want to pass a solidity
             self.solidity = solidity
@@ -65,29 +64,6 @@ class Propeller(object):
                 return airfoil[0]
         return 'SDA1075_494p'
 
-    # def get_Clalpha(self, Re):
-    #     """
-    #     Calculate the values of lift curve slope for the airfoil sections along the span of the blade
-    #     according to a spanwise distribution of Reynolds numbers
-    #     :param Re: Reynolds number along the span of the blade.
-    #     :return: Lift curve slopes for the airfoil sections along the span of the blade.
-    #     """
-    #     Clalpha = np.empty([len(self.r)])
-    #     for i, airfoil in enumerate(self.airfoil_fun_r):
-    #         table = self.Cl_tables[airfoil]
-    #         if Re[i] > 10000:
-    #             Cl0 = interpolate(table, 0.0, Re[i])
-    #             Cl5deg = interpolate(table, 5.0, Re[i])
-    #             Clalpha[i] = (Cl5deg - Cl0)/(5*2*np.pi/360)
-    #             if np.isnan(Clalpha[i]):
-    #                 print "Cl0 = " + str(Cl0)
-    #                 print "Cl5deg = " + str(Cl5deg)
-    #         else:
-    #             Cl0 = interpolate(table, 0.0, 10000)
-    #             Cl5deg = interpolate(table, 5.0, 10000)
-    #             Clalpha[i] = (Cl5deg - Cl0)/(5*2*np.pi/360)
-    #     return Clalpha
-
     def get_Clalpha_alpha0(self, Re):
         """
         Calculate the values of lift curve slope for the airfoil sections along the span of the blade
@@ -108,27 +84,6 @@ class Propeller(object):
         alpha0 = -Cl0 / Clalpha
         return Clalpha, alpha0
 
-    # def get_Cl(self, aoa, Re):
-    #     """
-    #     :param aoa: Angle of attack in radians, numpy array along the span
-    #     :param Re: Reynolds number, numpy array along the span
-    #     :return: Cl values along the span
-    #     """
-    #     aoa_deg = aoa * 360 / 2 / np.pi
-    #     if self.airfoils == ('simple', 0, 1):
-    #         return 2*np.pi * aoa
-    #     else:
-    #         Cl = np.empty([len(self.r)])
-    #         i = 0
-    #         for airfoil in self.airfoil_fun_r:
-    #             table = self.Cl_tables[airfoil]
-    #             if Re[i] > 10000:
-    #                 Cl[i] = interpolate(table, aoa_deg[i], Re[i])
-    #             else:
-    #                 Cl[i] = interpolate(table, aoa_deg[i], 10000)
-    #             i += 1
-    #         return Cl
-
     def get_Cl(self, aoa, Re, method='regular'):
         """
         :param aoa: Angle of attack in radians, numpy array along the span
@@ -144,26 +99,6 @@ class Propeller(object):
             Cl = griddata(table[0], table[1], zip(aoa_deg, Re), method='nearest')
             return Cl
 
-    # def get_Cd(self, aoa, Re):
-    #     """
-    #     :param aoa: Angle of attack in radians, numpy array along the span
-    #     :param Re: Reynolds number along the span
-    #     :return: Cd along the span
-    #     """
-    #     aoa_deg = aoa * 360 / 2 / np.pi
-    #     if self.airfoils == ('simple', 0, 1):
-    #         return 0.02 - 0.0216*aoa + 0.400*aoa**2
-    #     else:
-    #         Cd = np.empty([len(self.r)])
-    #         i = 0
-    #         for airfoil in self.airfoil_fun_r:
-    #             table = self.Cd_tables[airfoil]
-    #             if Re[i] > 10000:
-    #                 Cd[i] = interpolate(table, aoa_deg[i], Re[i])
-    #             else:
-    #                 Cd[i] = interpolate(table, aoa_deg[i], 10000)
-    #             i += 1
-    #         return Cd
     def get_Cd(self, aoa, Re):
         """
         :param aoa: Angle of attack in radians, numpy array along the span
@@ -178,3 +113,73 @@ class Propeller(object):
             table = self.Cd_tables[airfoil]
             Cd = griddata(table[0], table[1], zip(aoa_deg, Re), method='nearest')
             return Cd
+
+    ############################################################################################################
+    # Methods for limited Reynolds number availability.
+    ############################################################################################################
+
+    def get_Clalpha_Cl0(self, Re):
+        """
+        Get lift curve slope and lift coefficient at zero angle of attack for a single Reynolds number.
+        :param Re: Reynolds number at which to get Clalpha and Cl0
+        :return: Lift curve slope and lift coefficient at zero angle of attack
+        """
+        Cl_table = self.Cl_tables[self.airfoils[0][0]]
+        Cl_dict = dict(zip(zip(Cl_table[0][0], Cl_table[0][1]), Cl_table[1]))
+
+        # If Re is not a numpy array, convert it to one
+        if type(Re) is not np.ndarray:
+            try:
+                Re = np.array([float(Re)])
+            except TypeError:
+                Re = np.array(Re)
+
+        # Find the nearest table Reynolds number(s) to the input Reynolds number(s)
+        nearest_Re = self.closest_Re(Re, set(Cl_table[0][1]))
+
+        points = np.concatenate((zip((0.0,)*len(Re), nearest_Re), zip((5.0,)*len(Re), nearest_Re)))
+        vals = np.array([Cl_dict[tuple(point)] for point in points])
+        Cl0 = vals[:len(points)/2]
+        Cl5deg = vals[len(points)/2:]
+        Clalpha = (Cl5deg - Cl0) / (5*2*np.pi/360)
+        alpha0 = -Cl0 / Clalpha
+        return Clalpha, Cl0, alpha0
+
+    def get_Cl_fun(self, Re):
+        Clalpha, Cl0, alpha0 = self.get_Clalpha_Cl0(Re)
+
+        def Cl_fun(alpha):
+            """
+            :param alpha: Angle of attack in radians at which to obtain the lift coefficient at a given Reynolds number
+            :return: Lift coefficient
+            """
+            Cl = Cl0 + Clalpha*alpha
+            return Cl
+        return Cl_fun
+
+    def get_Cd_fun(self, Re):
+        Cd_table = self.Cd_tables[self.airfoils[0][0]]
+        alphas = []
+        Cds = []
+        for i in xrange(len(Cd_table[0][1])):
+            if self.isclose(Cd_table[0][1][i], Re) and not np.isnan(Cd_table[1][i]):
+                alphas.append(Cd_table[0][0][i])
+                Cds.append(Cd_table[1][i])
+        alphas = np.array(alphas)
+        Cds = np.array(Cds)
+        z = np.polyfit(alphas*2*np.pi/360, Cds, 6)
+        Cd_fun = np.poly1d(z)
+        return Cd_fun
+
+    @staticmethod
+    def closest_Re(Re, Res_in_table):
+        if type(Re) is not np.ndarray:
+            try:
+                Re = np.array([float(Re)])
+            except TypeError:
+                Re = np.array(Re)
+        return np.array([min(Res_in_table, key=lambda x: abs(x-R)) for R in Re])
+
+    @staticmethod
+    def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
+        return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)

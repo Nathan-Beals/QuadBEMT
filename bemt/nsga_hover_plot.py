@@ -15,6 +15,7 @@ def main():
     y = root_cutout + dy*np.arange(1, n_elements+1)
     r = y/radius
     pitch = 0.0
+    allowable_Re = []
     #airfoils = (('SDA1075_494p', 0.0, 1.0),)
     #airfoils = (('simple', 0.0, 1.0),)
 
@@ -77,7 +78,8 @@ def main():
     ##############################################################
 
     ####### NSGA Simple Hover 5000pop 1000gen ####################
-    airfoils = (('simple', 0.0, 1.0),)
+    airfoils = (('SDA1075_494p', 0.0, 1.0),)
+    allowable_Re = [100000.]
     omega = 471.413361
     twist0 = 0.899588
     chord0 = 0.467506
@@ -114,7 +116,7 @@ def main():
     prop = propeller.Propeller(twist, chord_meters, radius, n_blades, r, y, dr, dy, airfoils=airfoils)
 
     dT, dP, P, Cd, Cl, ures, chord_meters, dL, inflow, inflow_ang, eff_aoa, dFx, dFz, Re = \
-        bemt.bemt_axial(prop, pitch, omega, tip_loss=False, mach_corr=False, output='long')
+        bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, tip_loss=False, mach_corr=False, output='long')
 
     # base_vals = bemt.bemt_axial(base_prop, pitch, omega, tip_loss=False, mach_corr=False, output='long')
     # base_vals_newbemt = bemt.bemt_axial_alt(base_prop, pitch, omega, tip_loss=False, mach_corr=False)

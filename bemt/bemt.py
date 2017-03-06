@@ -118,7 +118,7 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, T_req, v_inf, n_azi_elem
     return T, CT, H, CH, L_observer, D_observer, P, CP
 
 
-def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_corr=True, output='short'):
+def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_loss=True, mach_corr=True, output='short'):
     # Calculate geopotential altitude
     alt_geop = (RAD_EARTH*alt)/(RAD_EARTH+alt)
 
@@ -134,7 +134,7 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     n_blades = propeller.n_blades
     blade_rad = propeller.radius
     twist = np.array(propeller.twist)
-
+    local_angle = pitch + twist
     chord = np.array(propeller.chord)
     dy = propeller.dy
     dr = propeller.dr
@@ -147,13 +147,16 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     # lift angle of attack. For positively cambered airfoils this will be a negative angle (all values of alpha0 will be
     # negative. Also find the lift curve slope along the span of the blade. Both quantities are calculated using an
     # approximate Reynolds number which calculates Re using only the in-plane portion of the freestream velocity.
+    Cl_funs = dict(zip(allowable_Re, [propeller.get_Cl_fun(Re) for Re in allowable_Re]))
+    Cd_funs = dict(zip(allowable_Re, [propeller.get_Cd_fun(Re) for Re in allowable_Re]))
     u_t = omega * r * blade_rad
     Re_approx = u_t * chord / kine_visc
-    # Clalpha = propeller.get_Clalpha(Re_approx)
-    # alpha0 = propeller.get_alpha0(Re_approx)
-    Clalpha, alpha0 = propeller.get_Clalpha_alpha0(Re_approx)
-    local_angle = pitch + twist
-
+    if allowable_Re:
+        Re_approx = np.array([min(allowable_Re, key=lambda x: abs(x-Re)) for Re in Re_approx])
+        Clalpha, Cl0, alpha0 = propeller.get_Clalpha_Cl0(Re_approx)
+    else:
+        Clalpha, alpha0 = propeller.get_Clalpha_alpha0(Re_approx)
+    print "Clalpha = " + str(Clalpha)
     # Define some other parameters for use in calculations
     v_tip = blade_rad * omega   # Blade tip speed
     lambda_c = v_climb/v_tip    # Climb inflow ratio
@@ -184,14 +187,26 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
 
     # Calculate Reynolds number along the span of the blade
     Re = u_resultant * chord / kine_visc
+    if allowable_Re:
+        Re = np.array([min(allowable_Re, key=lambda x: abs(x-rn)) for rn in Re])
 
     # Now calculate the effective angle of attack at the blade stations
     eff_aoa = local_angle - rel_inflow_angle
 
-    # Retrieve Cl and Cd values according to effective angle of attack along the blades. This will return NaN toward
-    # the root
-    Cl = np.nan_to_num(np.array(propeller.get_Cl(eff_aoa, Re)))
-    Cd = np.nan_to_num(np.array(propeller.get_Cd(eff_aoa, Re)))
+    # If we are using only a selection of discrete Reynolds numbers for the sake of calculating lift and drag
+    # coefficients, calculate using the linearized Cl functions and polynomial Cd functions.
+    Cl = []
+    Cd = []
+    if allowable_Re:
+        for i in xrange(len(eff_aoa)):
+            Cl.append(float(Cl_funs[Re[i]](eff_aoa[i])))
+            Cd.append(Cd_funs[Re[i]](eff_aoa[i]))
+        Cl = np.array(Cl)
+        Cd = np.array(Cd)
+    # Otherwise use the full table interpolation
+    else:
+        Cl = np.nan_to_num(np.array(propeller.get_Cl(eff_aoa, Re)))
+        Cd = np.nan_to_num(np.array(propeller.get_Cd(eff_aoa, Re)))
 
     # Calculate forces
     dL = 0.5*dens*u_resultant**2*chord*Cl*dy
@@ -218,121 +233,6 @@ def bemt_axial(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_co
     if output == 'short':
         return dT, P
     return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
-
-
-# def bemt_axial_alt(propeller, pitch, omega, v_climb=0, alt=0, tip_loss=True, mach_corr=True, output='short'):
-#     alt_geop = (RAD_EARTH*alt)/(RAD_EARTH+alt)
-#
-#     # Calculate atmospheric conditions
-#     temp = TEMP_SSL - A * alt_geop
-#     press = PRESS_SSL * (temp/TEMP_SSL)**(-Gs/(A*R))
-#     dens = press/(R*temp)
-#     spd_snd = np.sqrt(GAMMA * R * temp)
-#     kine_visc = 1.460 * 10**-5
-#
-#     # Define blade geometry parameters. Pitch, chord, and r are all lists of the same length defining the blade
-#     # geometry at a specific span location r
-#     n_blades = propeller.n_blades
-#     blade_rad = propeller.radius
-#     twist = np.array(propeller.twist)
-#
-#     chord = np.array(propeller.chord)
-#     dy = propeller.dy
-#     dr = propeller.dr
-#     r = np.array(propeller.r)
-#     y = np.array(propeller.y)
-#     n_elements = len(r)
-#     local_solidity = np.array(propeller.solidity)
-#
-#     # Due to the possible camber of the airfoils along the span, we need to correct the local angle to include the zero
-#     # lift angle of attack. For positively cambered airfoils this will be a negative angle (all values of alpha0 will be
-#     # negative. Also find the lift curve slope along the span of the blade. Both quantities are calculated using an
-#     # approximate Reynolds number which calculates Re using only the in-plane portion of the freestream velocity.
-#     u_t = omega * r * blade_rad
-#     Re_approx = u_t * chord / kine_visc
-#     # Clalpha = propeller.get_Clalpha(Re_approx)
-#     # alpha0 = propeller.get_alpha0(Re_approx)
-#     Clalpha, alpha0 = propeller.get_Clalpha_alpha0(Re_approx)
-#     local_angle = pitch + twist
-#     Cd_approx = propeller.get_Cd(local_angle, Re_approx)
-#
-#     # Define some other parameters for use in calculations
-#     v_tip = blade_rad * omega   # Blade tip speed
-#     lambda_c = v_climb/v_tip    # Climb inflow ratio
-#
-#     # Now handle hover and vertical flight cases
-#     # First calculate inflow along span by using F = 1 to get initial value not including tip loss
-#     F = 1
-#     local_inflow, rel_inflow_angle, u_resultant = inflow.axial_flight(local_solidity, propeller, lambda_c,
-#                                                                                 local_angle, alpha0, Clalpha, v_tip,
-#                                                                                 v_climb, omega, r, blade_rad, F,
-#                                                                                 spd_snd, mach_corr=mach_corr)
-#     # Now if tip_loss correction is desired, use the F = 1 solution as a starting guess to find the inflow
-#     if tip_loss:
-#         converged = np.array([False]*n_elements)
-#         while not all(converged):
-#             local_inflow_old = local_inflow
-#             f_tip = n_blades/2. * ((1 - r)/(r * rel_inflow_angle))
-#             f = f_tip
-#             f[-1] = 0.0000000000001
-#             F = (2/np.pi) * np.arccos(np.exp(-f))
-#             try:
-#                 local_inflow, rel_inflow_angle, u_resultant = inflow.axial_flight(local_solidity, propeller, lambda_c,
-#                                                                                   local_angle, alpha0, Clalpha, v_tip,
-#                                                                                   v_climb, omega, r, blade_rad, F,
-#                                                                                   spd_snd, mach_corr=mach_corr)
-#             except FloatingPointError:
-#                 raise
-#             converged = abs((local_inflow - local_inflow_old)/local_inflow) < 0.0005
-#
-#     # Calculate Reynolds number along the span of the blade
-#     Re = u_resultant * chord / kine_visc
-#
-#     # Now calculate the effective angle of attack at the blade stations
-#     eff_aoa = local_angle - rel_inflow_angle
-#
-#     # Retrieve Cl and Cd values according to effective angle of attack along the blades. This will return NaN toward
-#     # the root
-#     Cl = np.nan_to_num(np.array(propeller.get_Cl(eff_aoa, Re)))
-#     Cd = np.nan_to_num(np.array(propeller.get_Cd(eff_aoa, Re)))
-#
-#     dL = 0.5*dens*u_resultant**2*chord*Cl*dy
-#     dD = 0.5*dens*u_resultant**2*chord*Cd*dy
-#
-#     dFz = dL*np.cos(rel_inflow_angle) - dD*np.sin(rel_inflow_angle)
-#     dFx = dL*np.sin(rel_inflow_angle) + dD*np.cos(rel_inflow_angle)
-#
-#     dT = n_blades * dFz
-#     dP_i = n_blades * dL*np.sin(rel_inflow_angle) * omega * y
-#     dP_o = n_blades * dD*np.cos(rel_inflow_angle) * omega * y
-#     dP = n_blades * dFx * omega * y
-#
-#     dCT = 0.5 * n_blades * u_resultant**2 * chord * (Cl*np.cos(rel_inflow_angle) - Cd*np.sin(rel_inflow_angle)) * dy \
-#           / (np.pi*blade_rad**2) / (omega*blade_rad)**2
-#
-#     dCP = n_blades*chord/np.pi/blade_rad/2*(rel_inflow_angle*Cl+Cd)*r**3*dy/blade_rad
-#
-#     dP_alt = dCP * (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
-#     dT_alt = dCT * (dens * np.pi * blade_rad**2 * (omega*blade_rad)**2)
-#
-#     P_alt = sum(dP_alt)
-#     T_alt = sum(dT_alt)
-#
-#     T = sum(dT)
-#     P = sum(dP)
-#
-#     # dCT = 0.5 * local_solidity * u_resultant**2 * (Cl*np.cos(rel_inflow_angle) - Cd*np.sin(rel_inflow_angle)) * dy / \
-#     #       (omega**2 * blade_rad**3)
-#     # dCP = 0.5 * local_solidity * u_resultant**2 * (Cl*np.sin(rel_inflow_angle) + Cd*np.cos(rel_inflow_angle)) * y * dy / \
-#     #       (omega**2 * blade_rad**4)
-#     #
-#     # CT = sum(dCT)
-#     # CP = sum(dCP)
-#     #
-#     # T = CT * (dens * np.pi * blade_rad**2 * (omega*blade_rad)**2)
-#     # P = CP * (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
-#
-#     return dT, dP, dP_i, dP_o
 
 
 
