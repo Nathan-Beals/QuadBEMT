@@ -58,10 +58,30 @@ def get_Cd_fun(Re, Cd_table):
         if isclose(Cd_table[0][1][i], Re) and not np.isnan(Cd_table[1][i]):
             alphas.append(Cd_table[0][0][i])
             Cds.append(Cd_table[1][i])
-    alphas = np.array(alphas)
-    Cds = np.array(Cds)
-    z = np.polyfit(alphas*2*np.pi/360, Cds, 6)
-    Cd_fun = np.poly1d(z)
+
+    i_upper = [i for i in xrange(len(alphas)) if 5.0 <= alphas[i]]
+    alphas_upper = np.array([alphas[i] for i in i_upper])
+    Cds_upper = np.array([Cds[i] for i in i_upper])
+    z_upper = np.polyfit(alphas_upper*2*np.pi/360, Cds_upper, 6)
+
+    i_lower = [i for i in xrange(len(alphas)) if alphas[i] < 5.0]
+    alphas_lower = np.array([alphas[i] for i in i_lower])
+    Cds_lower = np.array([Cds[i] for i in i_lower])
+    z_lower = np.polyfit(alphas_lower*2*np.pi/360, Cds_lower, 4)
+
+    Cd_fun_upper = np.poly1d(z_upper)
+    Cd_fun_lower = np.poly1d(z_lower)
+
+    def Cd_fun(alpha):
+        alpha_deg = alpha * 360 / 2 / np.pi
+        Cd = []
+        for i, a in enumerate(alpha_deg):
+            if a < 5.0:
+                Cd.append(Cd_fun_lower(alpha[i]))
+            else:
+                Cd.append(Cd_fun_upper(alpha[i]))
+        Cd = np.array(Cd)
+        return Cd
     return Cd_fun
 
 
@@ -80,7 +100,7 @@ def main():
     Cl_fun = get_Cl_fun(target_Re, Cl_table)
     Cd_fun = get_Cd_fun(target_Re, Cd_table)
 
-    alphas = np.linspace(-5., 15., 40)
+    alphas = np.linspace(-10., 20., 40)
     alphas_rad = alphas * np.pi / 180
 
     # Compute simplified function values
@@ -97,13 +117,13 @@ def main():
     plt.plot(alphas, Cls, alphas_table, Cls_table)
     plt.xlabel('angle of attack')
     plt.ylabel('Cl')
-    plt.legend(['Function', 'Table'])
+    #plt.legend(['Function', 'Table'])
 
     plt.figure(2)
     plt.plot(alphas, Cds, alphas_table, Cds_table)
     plt.xlabel('angle of attack')
     plt.ylabel('Cd')
-    plt.legend(['Function', 'Table'])
+    #plt.legend(['Function', 'Table'])
 
     plt.show()
 

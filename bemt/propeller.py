@@ -6,7 +6,8 @@ import resource
 
 
 class Propeller(object):
-    def __init__(self, twist, chord, radius, n_blades, r, y, dr, dy, solidity=None, airfoils=None):
+    def __init__(self, twist, chord, radius, n_blades, r, y, dr, dy, solidity=None, airfoils=None, Cl_tables={},
+                 Cd_tables={}):
         """
         :param twist: Twist distribution, numpy array
         :param chord: Chord distribution, numpy array
@@ -34,15 +35,16 @@ class Propeller(object):
             self.airfoils = airfoils
         else:
             self.airfoils = airfoils
-            self.Cl_tables = {}
-            self.Cd_tables = {}
-            for airfoil in self.airfoils:
-                # Create the lookup table. The alpha values returned from create_table are in degrees, therefore the
-                # table will need to be queried in degrees
-                alpha, Re, CL, CD = create_table(airfoil[0])
+            self.Cl_tables = Cl_tables
+            self.Cd_tables = Cd_tables
+            if not Cl_tables:
+                for airfoil in self.airfoils:
+                    # Create the lookup table. The alpha values returned from create_table are in degrees, therefore the
+                    # table will need to be queried in degrees
+                    alpha, Re, CL, CD = create_table(airfoil[0])
 
-                self.Cl_tables[airfoil[0]] = ((alpha, Re), CL)
-                self.Cd_tables[airfoil[0]] = ((alpha, Re), CD)
+                    self.Cl_tables[airfoil[0]] = ((alpha, Re), CL)
+                    self.Cd_tables[airfoil[0]] = ((alpha, Re), CD)
 
         self.twist = twist
         self.radius = radius
@@ -157,6 +159,20 @@ class Propeller(object):
             return Cl
         return Cl_fun
 
+    # def get_Cd_fun(self, Re):
+    #     Cd_table = self.Cd_tables[self.airfoils[0][0]]
+    #     alphas = []
+    #     Cds = []
+    #     for i in xrange(len(Cd_table[0][1])):
+    #         if self.isclose(Cd_table[0][1][i], Re) and not np.isnan(Cd_table[1][i]):
+    #             alphas.append(Cd_table[0][0][i])
+    #             Cds.append(Cd_table[1][i])
+    #     alphas = np.array(alphas)
+    #     Cds = np.array(Cds)
+    #     z = np.polyfit(alphas*2*np.pi/360, Cds, 6)
+    #     Cd_fun = np.poly1d(z)
+    #     return Cd_fun
+
     def get_Cd_fun(self, Re):
         Cd_table = self.Cd_tables[self.airfoils[0][0]]
         alphas = []
@@ -165,10 +181,35 @@ class Propeller(object):
             if self.isclose(Cd_table[0][1][i], Re) and not np.isnan(Cd_table[1][i]):
                 alphas.append(Cd_table[0][0][i])
                 Cds.append(Cd_table[1][i])
-        alphas = np.array(alphas)
-        Cds = np.array(Cds)
-        z = np.polyfit(alphas*2*np.pi/360, Cds, 6)
-        Cd_fun = np.poly1d(z)
+
+        i_upper = [i for i in xrange(len(alphas)) if 5.0 < alphas[i]]
+        alphas_upper = np.array([alphas[i] for i in i_upper])
+        Cds_upper = np.array([Cds[i] for i in i_upper])
+        z_upper = np.polyfit(alphas_upper*2*np.pi/360, Cds_upper, 6)
+
+        i_lower = [i for i in xrange(len(alphas)) if alphas[i] < 5.0]
+        alphas_lower = np.array([alphas[i] for i in i_lower])
+        Cds_lower = np.array([Cds[i] for i in i_lower])
+        z_lower = np.polyfit(alphas_lower*2*np.pi/360, Cds_lower, 4)
+
+        Cd_fun_upper = np.poly1d(z_upper)
+        Cd_fun_lower = np.poly1d(z_lower)
+
+        def Cd_fun(alpha):
+            alpha_deg = alpha * 360 / 2 / np.pi
+            #return 0.02 - 0.0216*alpha + 0.400*alpha**2
+            if alpha_deg < 5.0:
+                return Cd_fun_lower(alpha)
+            else:
+                return Cd_fun_upper(alpha)
+            # Cd = []
+            # for ix, a in enumerate(alpha_deg):
+            #     if a < 5.0:
+            #         Cd.append(Cd_fun_lower(alpha[ix]))
+            #     else:
+            #         Cd.append(Cd_fun_upper(alpha[ix]))
+            # Cd = np.array(Cd)
+            # return Cd
         return Cd_fun
 
     @staticmethod

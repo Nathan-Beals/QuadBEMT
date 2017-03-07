@@ -151,12 +151,12 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_l
     Cd_funs = dict(zip(allowable_Re, [propeller.get_Cd_fun(Re) for Re in allowable_Re]))
     u_t = omega * r * blade_rad
     Re_approx = u_t * chord / kine_visc
+    Re_approx_act = np.array(Re_approx)
     if allowable_Re:
         Re_approx = np.array([min(allowable_Re, key=lambda x: abs(x-Re)) for Re in Re_approx])
         Clalpha, Cl0, alpha0 = propeller.get_Clalpha_Cl0(Re_approx)
     else:
         Clalpha, alpha0 = propeller.get_Clalpha_alpha0(Re_approx)
-    print "Clalpha = " + str(Clalpha)
     # Define some other parameters for use in calculations
     v_tip = blade_rad * omega   # Blade tip speed
     lambda_c = v_climb/v_tip    # Climb inflow ratio
@@ -187,6 +187,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_l
 
     # Calculate Reynolds number along the span of the blade
     Re = u_resultant * chord / kine_visc
+    Re_actual = np.array(Re)
     if allowable_Re:
         Re = np.array([min(allowable_Re, key=lambda x: abs(x-rn)) for rn in Re])
 
@@ -232,7 +233,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_l
 
     if output == 'short':
         return dT, P
-    return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
+    return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re, Re_actual, Re_approx_act
 
 
 
