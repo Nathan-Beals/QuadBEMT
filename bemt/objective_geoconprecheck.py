@@ -3,15 +3,8 @@ import propeller
 import bemt
 from pyOpt import Optimization
 from pyOpt import NSGA2
-from pyOpt import SLSQP
-from pyOpt import CONMIN
-from pyOpt import COBYLA
 import numpy as np
-import resource
-import sys
-import gc
-import pdb
-import sys
+import aero_coeffs
 
 
 def counted(f):
@@ -40,6 +33,11 @@ def objfun(xn, **kwargs):
     cval_max = kwargs['max_chord']
     tip_loss = kwargs['tip_loss']
     mach_corr = kwargs['mach_corr']
+    Cl_tables = kwargs['Cl_tables']
+    Cd_tables = kwargs['Cd_tables']
+    Cl_funs = kwargs['Cl_funs']
+    Cd_funs = kwargs['Cd_funs']
+    allowable_Re = kwargs['allowable_Re']
     omega = xn[0]
     twist0 = xn[1]
     chord0 = xn[2]*radius
@@ -62,11 +60,13 @@ def objfun(xn, **kwargs):
         print "geocons violated"
         return f, g, fail
 
-    prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy, airfoils=airfoils)
+    prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy, airfoils=airfoils, Cl_tables=Cl_tables,
+                               Cd_tables=Cd_tables)
 
     try:
-        dT, P = bemt.bemt_axial(prop, pitch, omega, tip_loss=tip_loss, mach_corr=mach_corr)
-    except FloatingPointError:
+        dT, P = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                tip_loss=tip_loss, mach_corr=mach_corr)
+    except (FloatingPointError, IndexError):
         fail = 1
         return f, g, fail
 
@@ -121,10 +121,29 @@ def main():
     y = root_cutout + dy*np.arange(1, n_elements+1)
     r = y/radius
     pitch = 0.0
-    #airfoils = (('SDA1075_494p', 0.0, 1.0),)
     airfoils = (('simple', 0.0, 1.0),)
+    allowable_Re = []
+    #allowable_Re = [1000000.]
+    file_Re = [1000000., 500000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
     thrust = 4.94
-    max_chord = 0.5
+    max_chord = 2
+
+    Cl_tables = {}
+    Cd_tables = {}
+    # Get lookup tables
+    if any(airfoil[0] != 'simple' for airfoil in airfoils):
+        for airfoil in airfoils:
+            Cl_table, Cd_table = aero_coeffs.create_Cl_Cd_table(airfoil[0], file_Re)
+
+            Cl_tables[airfoil[0]] = Cl_table
+            Cd_tables[airfoil[0]] = Cd_table
+
+    # Create list of Cl functions. One for each Reynolds number
+    Cl_funs = {}
+    Cd_funs = {}
+    if Cl_tables:
+        Cl_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cl_fun(Re, Cl_tables[airfoils[0][0]]) for Re in allowable_Re]))
+        Cd_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cd_fun(Re, Cd_tables[airfoils[0][0]]) for Re in allowable_Re]))
 
     ###########################################
     # Set design variable bounds
@@ -186,14 +205,13 @@ def main():
 
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
-    nsga2.setOption('PopSize', 5000)
-    nsga2.setOption('maxGen', 1000)
+    nsga2.setOption('PopSize', 1000)
+    nsga2.setOption('maxGen', 100)
     nsga2.setOption('pCross_real', 0.85)
-    #nsga2.setOption('xinit', 1)
-    #nsga2.setOption('seed', 0.541)
     nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
           dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=False,
-          mach_corr=False)
+          mach_corr=False, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables, Cd_tables=Cd_tables,
+          allowable_Re=allowable_Re)
     print opt_prob.solution(0)
 
     # conmin = CONMIN()

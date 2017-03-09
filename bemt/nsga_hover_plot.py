@@ -4,6 +4,7 @@ import propeller
 import bemt
 import unit_conversion
 import lookup_table
+import aero_coeffs
 
 
 def main():
@@ -16,7 +17,7 @@ def main():
     y = root_cutout + dy*np.arange(1, n_elements+1)
     r = y/radius
     pitch = 0.0
-    allowable_Re = [100000., 90000., 80000., 70000.]
+    allowable_Re = [100000., 90000., 80000., 70000., 60000.]
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
     #airfoils = (('simple', 0.0, 1.0),)
 
@@ -25,10 +26,15 @@ def main():
     # Get lookup tables
     if any(airfoil[0] != 'simple' for airfoil in airfoils):
         for airfoil in airfoils:
-            alpha, Re, CL, CD = lookup_table.create_table(airfoil[0])
+            Cl_table, Cd_table = aero_coeffs.create_Cl_Cd_table(airfoil[0])
 
-            Cl_tables[airfoil[0]] = ((alpha, Re), CL)
-            Cd_tables[airfoil[0]] = ((alpha, Re), CD)
+            Cl_tables[airfoil[0]] = Cl_table
+            Cd_tables[airfoil[0]] = Cd_table
+
+    # Create list of Cl functions. One for each Reynolds number
+    if Cl_tables:
+        Cl_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cl_fun(Re, Cl_tables[airfoils[0][0]]) for Re in allowable_Re]))
+        Cd_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cd_fun(Re, Cd_tables[airfoils[0][0]]) for Re in allowable_Re]))
 
     ########### DA4002 ########################
     # omega = 5943 * 2*np.pi/60
@@ -125,8 +131,9 @@ def main():
     prop = propeller.Propeller(twist, chord_meters, radius, n_blades, r, y, dr, dy, airfoils=airfoils,
                                Cl_tables=Cl_tables, Cd_tables=Cd_tables)
 
-    dT, dP, P, Cd, Cl, ures, chord_meters, dL, inflow, inflow_ang, eff_aoa, dFx, dFz, Re, Re_actual, Re_approx_act = \
-        bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, tip_loss=False, mach_corr=False, output='long')
+    dT, dP, P, Cd, Cl, ures, chord_meters, dL, inflow, inflow_ang, eff_aoa, dFx, dFz, Re, Re_act, Re_app, Re_app_act = \
+        bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs, tip_loss=False,
+                        mach_corr=False, output='long')
 
     # base_vals = bemt.bemt_axial(base_prop, pitch, omega, tip_loss=False, mach_corr=False, output='long')
     # base_vals_newbemt = bemt.bemt_axial_alt(base_prop, pitch, omega, tip_loss=False, mach_corr=False)
@@ -192,8 +199,9 @@ def main():
     print "Thrust = " + str(sum(dT))
     print "Power = " + str(sum(dP))
     print "Re = " + str(Re)
-    print "Re_act = " + str(Re_actual)
-    print "Re_app_act = " + str(Re_approx_act)
+    print "Re_act = " + str(Re_act)
+    print "Re_app = " + str(Re_app)
+    print "Re_app_act = " + str(Re_app_act)
 
     # plt.figure(1)
     # plt.plot(r, chord, '-b')

@@ -1,7 +1,6 @@
 import numpy as np
 import inflow
-from unit_conversion import rad2deg
-import resource
+import aero_coeffs
 
 # Define some constants
 RAD_EARTH = 6371000    # Radius of Earth in meters
@@ -118,7 +117,7 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, T_req, v_inf, n_azi_elem
     return T, CT, H, CH, L_observer, D_observer, P, CP
 
 
-def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_loss=True, mach_corr=True, output='short'):
+def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={}, v_climb=0, alt=0, tip_loss=True, mach_corr=True, output='short'):
     # Calculate geopotential altitude
     alt_geop = (RAD_EARTH*alt)/(RAD_EARTH+alt)
 
@@ -142,24 +141,19 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_l
     y = np.array(propeller.y)
     n_elements = len(r)
     local_solidity = np.array(propeller.solidity)
+    airfoil = propeller.airfoils[0][0]
+    Cl_table = propeller.Cl_tables[airfoil]
+    Cd_table = propeller.Cd_tables[airfoil]
 
     # Due to the possible camber of the airfoils along the span, we need to correct the local angle to include the zero
     # lift angle of attack. For positively cambered airfoils this will be a negative angle (all values of alpha0 will be
     # negative. Also find the lift curve slope along the span of the blade. Both quantities are calculated using an
     # approximate Reynolds number which calculates Re using only the in-plane portion of the freestream velocity.
-    Cl_funs = dict(zip(allowable_Re, [propeller.get_Cl_fun(Re) for Re in allowable_Re]))
-    Cd_funs = dict(zip(allowable_Re, [propeller.get_Cd_fun(Re) for Re in allowable_Re]))
     u_t = omega * r * blade_rad
     Re_approx = u_t * chord / kine_visc
-    Re_approx_act = np.array(Re_approx)
-    if allowable_Re:
-        Re_approx = np.array([min(allowable_Re, key=lambda x: abs(x-Re)) for Re in Re_approx])
-        Clalpha, Cl0, alpha0 = propeller.get_Clalpha_Cl0(Re_approx)
-    else:
-        Clalpha, alpha0 = propeller.get_Clalpha_alpha0(Re_approx)
-    # Define some other parameters for use in calculations
-    v_tip = blade_rad * omega   # Blade tip speed
-    lambda_c = v_climb/v_tip    # Climb inflow ratio
+    Clalpha, Cl0, alpha0 = aero_coeffs.get_liftCurveInfo(Re_approx, Cl_table)
+    v_tip = blade_rad * omega
+    lambda_c = v_climb/v_tip
 
     # Now handle hover and vertical flight cases
     # First calculate inflow along span by using F = 1 to get initial value not including tip loss
@@ -187,18 +181,22 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_l
 
     # Calculate Reynolds number along the span of the blade
     Re = u_resultant * chord / kine_visc
-    Re_actual = np.array(Re)
     if allowable_Re:
         Re = np.array([min(allowable_Re, key=lambda x: abs(x-rn)) for rn in Re])
 
-    # Now calculate the effective angle of attack at the blade stations
+    # Now calculate the effective angle of attack at the blade stations. Lift and drag coefficients were only tabulated
+    # for approximately -10 deg < aoa < 20 deg. Therefore fail cases with angles of attack that lie outside of those
+    # bounds, as the data (or polyfits based on the data) may not be reliable.
     eff_aoa = local_angle - rel_inflow_angle
+    # if any(a < -10. or a > 20. for a in eff_aoa*180/np.pi):
+    #     print "angle of attack out of bounds"
+    #     raise IndexError
 
     # If we are using only a selection of discrete Reynolds numbers for the sake of calculating lift and drag
-    # coefficients, calculate using the linearized Cl functions and polynomial Cd functions.
+    # coefficients, calculate using the linearized Cl functions and polynomial Cd functions found in aero_coeffs.py.
     Cl = []
     Cd = []
-    if allowable_Re:
+    if Cl_funs:
         for i in xrange(len(eff_aoa)):
             Cl.append(float(Cl_funs[Re[i]](eff_aoa[i])))
             Cd.append(Cd_funs[Re[i]](eff_aoa[i]))
@@ -206,8 +204,8 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_l
         Cd = np.array(Cd)
     # Otherwise use the full table interpolation
     else:
-        Cl = np.nan_to_num(np.array(propeller.get_Cl(eff_aoa, Re)))
-        Cd = np.nan_to_num(np.array(propeller.get_Cd(eff_aoa, Re)))
+        Cl = np.nan_to_num(np.array(aero_coeffs.get_Cl(eff_aoa, Re, Cl_table)))
+        Cd = np.nan_to_num(np.array(aero_coeffs.get_Cd(eff_aoa, Re, Cd_table)))
 
     # Calculate forces
     dL = 0.5*dens*u_resultant**2*chord*Cl*dy
@@ -233,7 +231,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], v_climb=0, alt=0, tip_l
 
     if output == 'short':
         return dT, P
-    return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re, Re_actual, Re_approx_act
+    return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
 
 
 

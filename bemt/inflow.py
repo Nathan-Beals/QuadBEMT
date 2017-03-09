@@ -36,8 +36,6 @@ def axial_flight(local_solidity, prop, lambda_c, local_angle, alpha0, Clalpha, v
 
     v_induced = local_inflow * v_tip - v_climb
     u_p = v_climb + v_induced
-    # print "u_p**2 = " + str(u_p**2)
-    # print "u_t**2 = " + str(u_t**2)
 
     u_resultant = np.sqrt(u_p**2 + u_t**2)
     rel_inflow_angle = np.arctan(u_p / u_t)

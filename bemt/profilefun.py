@@ -6,7 +6,7 @@ cProfile.run('main()')
 
 
 def main():
-    phuriwat_opt.main()
+    nsga_hover_plot.main()
 
 if __name__ == '__main__':
     main()
