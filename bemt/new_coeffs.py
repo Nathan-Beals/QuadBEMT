@@ -2,6 +2,9 @@ import lookup_table
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp2d
+import scipy.interpolate as spint
+import scipy.spatial.qhull as qhull
+import itertools
 
 
 def create_Cl_Cd_table(airfoil):
@@ -9,33 +12,6 @@ def create_Cl_Cd_table(airfoil):
     Cl_table = ((alphas, Re), CL)
     Cd_table = ((alphas, Re), CD)
     return Cl_table, Cd_table
-
-
-def get_Clalpha_Cl0(Re, Cl_table):
-    """
-    Get lift curve slope and lift coefficient at zero angle of attack for a single Reynolds number.
-    :param Re: Reynolds number at which to get Clalpha and Cl0
-    :param Cl_table: Table in the form of ((alphas, Res), CLs)
-    :return: Lift curve slope and lift coefficient at zero angle of attack
-    """
-    Cl_dict = dict(zip(zip(Cl_table[0][0], Cl_table[0][1]), Cl_table[1]))
-
-    # If Re is not a numpy array, convert it to one
-    if type(Re) is not np.ndarray:
-        try:
-            Re = np.array([float(Re)])
-        except TypeError:
-            Re = np.array(Re)
-
-    # Find the nearest table Reynolds number(s) to the input Reynolds number(s)
-    nearest_Re = closest_Re(Re, set(Cl_table[0][1]))
-
-    points = np.concatenate((zip((0.0,)*len(Re), nearest_Re), zip((5.0,)*len(Re), nearest_Re)))
-    vals = np.array([Cl_dict[tuple(point)] for point in points])
-    Cl0 = vals[:len(points)/2]
-    Cl5deg = vals[len(points)/2:]
-    Clalpha = (Cl5deg - Cl0) / (5*2*np.pi/360)
-    return Clalpha, Cl0
 
 
 def get_liftCurveInfo(Re, table):
@@ -82,10 +58,9 @@ def get_Cl_fun(Re, Cl_table):
 def get_Cd_fun(Re, Cd_table):
     alphas = []
     Cds = []
-    max_aoa = max(Cd_table[0][0])
     print max(Cd_table[1])
     for i in xrange(len(Cd_table[0][1])):
-        if isclose(Cd_table[0][1][i], Re) and -10.0 <= Cd_table[0][0][i] and not np.isnan(Cd_table[1][i]) and -100 < Cd_table[1][i] < 100:
+        if isclose(Cd_table[0][1][i], Re) and not np.isnan(Cd_table[1][i]):
             alphas.append(Cd_table[0][0][i])
             Cds.append(Cd_table[1][i])
     alphas = np.array(alphas)
@@ -126,13 +101,48 @@ def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
+def get_Cl_Cd(aoa, Re, tables):
+    aoa = np.array(aoa)
+    Cl_table = tables[0]
+    Cd_table = tables[1]
+    grid_aoa_deg = [a * 360/2/np.pi for a in Cl_table[0][0]]
+    new_aoa_deg = aoa * 360/2/np.pi
+
+    xy = np.vstack((grid_aoa_deg, Cl_table[0][1]))
+    try:
+        uv = np.array(zip(new_aoa_deg, Re))
+    except TypeError:
+        uv = np.array([aoa, Re])
+
+    vtx, wts = interp_weights(xy, uv)
+
+    Cl = interpolate(Cl_table[1], vtx, wts)
+    Cd = interpolate(Cd_table[1], vtx, wts)
+
+    return Cl, Cd
+
+
+def interp_weights(xy, uv, dim=2):
+    tri = qhull.Delaunay(xy)
+    simplex = tri.find_simplex(uv)
+    vertices = np.take(tri.simplices, simplex, axis=0)
+    temp = np.take(tri.transform, simplex, axis=0)
+    delta = uv - temp[:, dim]
+    bary = np.einsum('njk,nk->nj', temp[:, :dim, :], delta)
+    return vertices, np.hstack((bary, 1 - bary.sum(axis=1, keepdims=True)))
+
+
+def interpolate(values, vtx, wts):
+    return np.einsum('nj,nj->n', np.take(values, vtx), wts)
+
+
 def main():
     airfoil = 'SDA1075_494p'
     Cl_table, Cd_table = create_Cl_Cd_table(airfoil)
     alphas = np.linspace(-10., 40., 60)
     alphas_rad = np.linspace(-10., 40., 60) * np.pi / 180
     #target_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
-    target_Re = 100000.
+    target_Re = 10000.
     # plt.figure(1)
     # for Re in target_Re:
     #     Cl_fun = get_Cl_fun(Re, Cl_table)
@@ -146,26 +156,39 @@ def main():
     # plt.show()
 
     #Get values from table
+    Cl_dict = dict(zip(zip(Cl_table[0][0], Cl_table[0][1]), Cl_table[1]))
+    Cd_dict = dict(zip(zip(Cd_table[0][0], Cd_table[0][1]), Cd_table[1]))
     indices = [i for i in xrange(len(Cl_table[0][1])) if isclose(Cl_table[0][1][i], target_Re)]
     alphas_table = np.array([Cl_table[0][0][i] for i in indices])
     Cls_table = np.array([Cl_table[1][i] for i in indices])
     Cds_table = np.array([Cd_table[1][i] for i in indices])
 
+    # pts = ((1.2, 100000.), (3.4, 100000.))
+    # aoa = [pt[0]*2*np.pi/360 for pt in pts]
+    # Re = [pt[1] for pt in pts]
+    # Cl_table_vals = [Cl_dict[pt] for pt in pts]
+    # Cd_table_vals = [Cd_dict[pt] for pt in pts]
+    # Cl, Cd = get_Cl_Cd(aoa, Re, (Cl_table, Cd_table))
+    #
+    # print "Table = " + str(Cl_table_vals) + " " + str(Cd_table_vals)
+    # print "Interp + " + str(Cl) + " " + str(Cd)
+
+
     Cl_fun = get_Cl_fun(target_Re, Cl_table)
-    #Cd_fun = get_Cd_fun(target_Re, Cd_table)
-    Cd_fun = interp2d_fun(Cd_table)
+    Cd_fun = get_Cd_fun(target_Re, Cd_table)
+    #Cd_fun = interp2d_fun(Cd_table)
     Cls = Cl_fun(alphas_rad)
-    #Cds = Cd_fun(np.ones(len(alphas_rad))*target_Re, alphas_rad)
+    Cds = Cd_fun(alphas_rad)
 
     # plt.figure(1)
     # plt.plot(alphas, Cls, alphas_table, Cls_table)
     # plt.xlabel('angle of attack')
     # plt.ylabel('Cl')
-    #plt.legend(['Function', 'Table'])
+    # plt.legend(['Function', 'Table'])
 
     plt.figure(2)
     plt.plot(alphas, Cds),
-    #plt.plot(alphas_table, Cds_table)
+    plt.plot(alphas_table, Cds_table, 'r-')
     plt.xlabel('angle of attack')
     plt.ylabel('Cd')
     #plt.legend(['Function', 'Table'])

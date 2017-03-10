@@ -32,6 +32,7 @@ def objfun_optimize_chord(xn, **kwargs):
     pitch = kwargs['pitch']
     target_thrust = kwargs['thrust']
     cval_max = kwargs['max_chord']
+    c0_max = kwargs['c0_max']
     tip_loss = kwargs['tip_loss']
     mach_corr = kwargs['mach_corr']
     allowable_Re = kwargs['allowable_Re']
@@ -50,10 +51,10 @@ def objfun_optimize_chord(xn, **kwargs):
 
     f = 1000.
     fail = 0
-    g = [1.0] * (2*len(r)+1)
+    g = [1.0] * (2*len(r)+2)
 
     # Calculate geometric constraint values and return immediately if there are any failures
-    g[1:] = get_geocons(chord, cval_max, radius)
+    g[1:] = get_geocons(chord, cval_max, c0_max, radius)
     # if any(geocon > 0.0 for geocon in g[1:]):
     #     print "geocons violated"
     #     print g[1:]
@@ -135,8 +136,8 @@ def objfun_optimize_twist(xn, **kwargs):
     return f, g, fail
 
 
-def get_geocons(c, cval_max, R):
-    geocons = [0.0] * (2*len(c))
+def get_geocons(c, cval_max, c0_max, R):
+    geocons = [0.0] * (2*len(c)+1)
     i = 0
     # Check if all chord values are greater than zero
     for cval in c:
@@ -146,6 +147,8 @@ def get_geocons(c, cval_max, R):
     for cval in c:
         geocons[i] = cval/R - cval_max
         i += 1
+    # Check if c0 is below c0_max
+    geocons[-1] = c[0]/R - c0_max
     return geocons
 
 
@@ -177,6 +180,7 @@ def optimize_chord(**k):
     dchord = k['dchord']
     dchord_lower = k['dchord_lower']
     dchord_upper = k['dchord_upper']
+    c0_max = k['c0_max']
 
     opt_prob_ft = Optimization('Rotor in Hover w/ Fixed Twist', objfun_optimize_chord)
     opt_prob_ft.addVar('omega', 'c', value=omega, lower=omega_lower, upper=omega_upper)
@@ -184,6 +188,7 @@ def optimize_chord(**k):
     opt_prob_ft.addVarGroup('dchord', n_elements-1, 'c', value=dchord, lower=dchord_lower, upper=dchord_upper)
     opt_prob_ft.addObj('f')
     opt_prob_ft.addCon('thrust', 'i')
+    opt_prob_ft.addCon('c0_max', 'i')
     opt_prob_ft.addConGroup('c_lower', n_elements, 'i')
     opt_prob_ft.addConGroup('c_upper', n_elements, 'i')
     #print opt_prob_ft
@@ -215,7 +220,8 @@ def optimize_chord(**k):
                                   root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                   airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=False,
                                   mach_corr=False, omega=omega, twist=twist, allowable_Re=allowable_Re,
-                                  Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+                                  Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                  c0_max=c0_max)
     # #print opt_prob_ft.solution(0)
 
     # conmin = CONMIN()
@@ -297,7 +303,7 @@ def optimize_twist(**k):
 
 def main():
     n_blades = 2
-    n_elements = 5
+    n_elements = 18
     radius = unit_conversion.in2m(9.0)/2
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
@@ -308,9 +314,9 @@ def main():
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
     allowable_Re = []
     # allowable_Re = [1000000., 500000., 250000., 100000., 90000.]
-    allowable_Re = [1000000.]
-    thrust = 10.75
-    max_chord = 100
+    allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000.]
+    thrust = 5.84
+    max_chord = 0.4
 
     Cl_tables = {}
     Cd_tables = {}
@@ -337,16 +343,17 @@ def main():
     # The DA4002 blade
     chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787, 0.1786,
                       0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
-    chord = np.array([chord[i] for i in [0, 4, 8, 12, 16]])
-    chord = chord[-1] / r
+    #chord = np.array([chord[i] for i in [0, 4, 8, 12, 16]])
+    #chord = chord[-1] / r
     twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
                       18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
-    twist = np.array([twist[i] for i in [0, 4, 8, 12, 16]])
+    #twist = np.array([twist[i] for i in [0, 4, 8, 12, 16]])
 
     chord0 = chord[0]
     twist0 = twist[0]
     dchord = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
     dtwist = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
+    c0_max = chord0
 
     omega = 5943.0 * 2*np.pi/60
     omega_upper = 7000 * 2*np.pi/60
@@ -362,11 +369,12 @@ def main():
     # dtwist_start = 0.0 * 2 * np.pi / 360
     dtwist_lower = -10.0 * 2 * np.pi / 360
     dtwist_upper = 10.0 * 2 * np.pi / 360
-    dchord_lower = -0.8
-    dchord_upper = 0.8
+    dchord_lower = -0.1
+    dchord_upper = 0.1
 
     twist_start = twist
     chord_start = chord
+    omega_start = omega
 
     iteration = 0
     fit_old = 1000.
@@ -389,12 +397,12 @@ def main():
                                     root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                     airfoils=airfoils, thrust=thrust, max_chord=max_chord, twist=twist,
                                     allowable_Re=allowable_Re, Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs,
-                                    Cd_funs=Cd_funs)
+                                    Cd_funs=Cd_funs, c0_max=c0_max)
 
         omega = xstr[0]
         chord = calc_chord_dist(xstr[1], xstr[2:])
 
-        converged = abs((fit_old - fstr) / fstr) < 0.00005
+        converged = abs((fit_old - fstr) / fstr) < 0.0005
         fit_old = fstr
 
     print "omega = " + str(omega*60/2/np.pi)
@@ -410,9 +418,12 @@ def main():
         return bemt.bemt_axial(prop, pitch, o, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                tip_loss=False, mach_corr=False, output='long')
 
-    perf = get_performance(omega, chord, twist)
-    print "Thrust of optimized = " + str(sum(perf[0]))
-    print "Power of optimized = " + str(sum(perf[1]))
+    perf_opt = get_performance(omega, chord, twist)
+    perf_start = get_performance(omega_start, chord_start, twist_start)
+    print "Thrust of optimized = " + str(sum(perf_opt[0]))
+    print "Power of optimized = " + str(sum(perf_opt[1]))
+    print "Thrust of start = " + str(sum(perf_start[0]))
+    print "Power of start = " + str(sum(perf_start[1]))
 
     plt.figure(1)
     plt.plot(r, chord_start, '-b')

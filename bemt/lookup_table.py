@@ -38,14 +38,14 @@ def create_table(airfoil_name):
         alpha_pad_low = np.arange(alpha_full[0], alpha[0], step)
         alpha_pad_high = np.arange(alpha[-1]+step, alpha_full[-1]+step, step)
         alpha_table = np.concatenate((alpha_pad_low, alpha, alpha_pad_high))
-        # coeff_pad_low = np.empty(len(alpha_pad_low))*np.nan
-        # coeff_pad_high = np.empty(len(alpha_pad_high))*np.nan
-        CL_pad_low = np.ones(len(alpha_pad_low)) * -10000
-        CL_pad_high = np.ones(len(alpha_pad_high)) * -10000
-        CD_pad_low = np.ones(len(alpha_pad_low)) * 10000
-        CD_pad_high = np.ones(len(alpha_pad_high)) * 10000
-        CL_table = np.concatenate((CL_pad_low, CL, CL_pad_high))
-        CD_table = np.concatenate((CD_pad_low, CD, CD_pad_high))
+        coeff_pad_low = np.empty(len(alpha_pad_low))*np.nan
+        coeff_pad_high = np.empty(len(alpha_pad_high))*np.nan
+        # CL_pad_low = np.ones(len(alpha_pad_low)) * -10000
+        # CL_pad_high = np.ones(len(alpha_pad_high)) * -10000
+        # CD_pad_low = np.ones(len(alpha_pad_low)) * 10000
+        # CD_pad_high = np.ones(len(alpha_pad_high)) * 10000
+        CL_table = np.concatenate((coeff_pad_low, CL, coeff_pad_high))
+        CD_table = np.concatenate((coeff_pad_low, CD, coeff_pad_high))
 
         reynolds_numbers = np.concatenate((reynolds_numbers, np.ones(len(alpha_table))*Re))
         alphas = np.concatenate((alphas, alpha_table))

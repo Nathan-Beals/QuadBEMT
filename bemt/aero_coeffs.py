@@ -52,6 +52,23 @@ def get_Cd(aoa, Re, table):
         return Cd
 
 
+def get_Cl_Cd(aoa, Re, tables):
+    Cl_table = tables[0]
+    Cd_table = tables[1]
+    grid_aoa_deg = Cl_table[0][0] * 360/2/np.pi
+    new_aoa_deg = aoa * 360/2/np.pi
+
+    xy = np.vstack((grid_aoa_deg, Cl_table[0][1]))
+    uv = np.array(zip(new_aoa_deg, Re))
+
+    vtx, wts = interp_weights(xy, uv)
+
+    Cl = interpolate(Cl_table[1], vtx, wts)
+    Cd = interpolate(Cd_table[1], vtx, wts)
+
+    return Cl, Cd
+
+
 def get_liftCurveInfo(Re, table):
     """
     Calculate the lift curve slope, lift coefficient at zero angle of attack, and zero lift angle of attack along the
@@ -98,7 +115,7 @@ def get_Cd_fun(Re, Cd_table):
     Cds = []
     max_aoa = max(Cd_table[0][0])
     for i in xrange(len(Cd_table[0][1])):
-        if isclose(Cd_table[0][1][i], Re) and not np.isnan(Cd_table[1][i]) and -5.0 <= Cd_table[0][0][i] <= max_aoa:
+        if isclose(Cd_table[0][1][i], Re) and not np.isnan(Cd_table[1][i]):
             alphas.append(Cd_table[0][0][i])
             Cds.append(Cd_table[1][i])
     alphas = np.array(alphas)
