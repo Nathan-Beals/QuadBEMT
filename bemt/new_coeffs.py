@@ -108,7 +108,7 @@ def get_Cl_Cd(aoa, Re, tables):
     grid_aoa_deg = [a * 360/2/np.pi for a in Cl_table[0][0]]
     new_aoa_deg = aoa * 360/2/np.pi
 
-    xy = np.vstack((grid_aoa_deg, Cl_table[0][1]))
+    xy = np.column_stack((grid_aoa_deg, Cl_table[0][1]))
     try:
         uv = np.array(zip(new_aoa_deg, Re))
     except TypeError:
