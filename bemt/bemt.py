@@ -222,6 +222,21 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
     Q = sum(dQ)
     P = sum(dP)
 
+    # if T > 10:
+    #     print "dT = " + str(dT)
+    #     print "dP = " + str(dP)
+    #     print "Cd = " + str(Cd)
+    #     print "Cl = " + str(Cl)
+    #     print "u_res = " + str(u_resultant)
+    #     print "dL = " + str(dL)
+    #     print "dD = " + str(dD)
+    #     print "dFx = " + str(dFx)
+    #     print "dFz = " + str(dFz)
+    #     print "inflow = " + str(local_inflow)
+    #     print "phi = " + str(rel_inflow_angle)
+    #     print "eff_aoa = " + str(eff_aoa)
+    #     print "Re = " + str(Re)
+
     CT = T / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**2)
     CP = P / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
     CQ = Q / (dens * np.pi * blade_rad**3 * (omega*blade_rad)**2)
@@ -231,7 +246,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
 
     if output == 'short':
         return dT, P
-    return dT, dP, P, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
+    return dT, dP, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
 
 
 

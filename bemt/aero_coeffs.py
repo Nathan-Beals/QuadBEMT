@@ -14,10 +14,10 @@ def create_Cl_Cd_table(airfoil):
     output from XFOIL.
     :return: The Cl and Cd "tables" as described above.
     """
-    [alphas, Re, CL, CD] = lookup_table.create_table(airfoil)
+    [alphas, Re, CL, CD, Clmax] = lookup_table.create_table(airfoil)
     Cl_table = ((alphas, Re), CL)
     Cd_table = ((alphas, Re), CD)
-    return Cl_table, Cd_table
+    return Cl_table, Cd_table, Clmax
 
 
 def get_Cl(aoa, Re, table):
@@ -32,7 +32,7 @@ def get_Cl(aoa, Re, table):
     if not table:
         return 2*np.pi*aoa
     else:
-        Cl = griddata(table[0], table[1], zip(aoa_deg, Re), method='linear')
+        Cl = griddata(table[0], table[1], zip(aoa_deg, Re), method='nearest')
         return Cl
 
 
@@ -48,7 +48,7 @@ def get_Cd(aoa, Re, table):
     if not table:
         return 0.02 - 0.0216*aoa + 0.400*aoa**2
     else:
-        Cd = griddata(table[0], table[1], zip(aoa_deg, Re), method='linear')
+        Cd = griddata(table[0], table[1], zip(aoa_deg, Re), method='nearest')
         return Cd
 
 
@@ -75,17 +75,22 @@ def get_liftCurveInfo(Re, table):
     span of the blade using the table provided (corresponding to a specific airfoil). Finds the point in the table
     nearest to each Reynolds number in the Re input array and returns the values corresponding to that point in the
     table (i.e., there is no interpolation).
-    :param Re: Reynolds numbers along the span of the blade.
+    :param Re: Reynolds numbers along the span of the blade. Can  be a numpy array (entire span) or float.
     :param table: Cl table in the form ((angle of attack, Reynolds number), Cl) corresponding to a specific airfoil.
     If a 'simple' airfoil is used this will be an empty tuple and trigger the first 'if' statement.
     :return: Clalpha, Cl0, and alpha0 along the span of the blade.
     """
-
     if not table:
         return np.ones(len(Re))*2*np.pi, np.zeros(len(Re)), np.zeros(len(Re))
 
     Cl_dict = dict(zip(zip(table[0][0], table[0][1]), table[1]))
     nearest_Re = closest_Re(Re, set(table[0][1]))
+    # try:
+    #     Clmax = np.zeros(len(Re))
+    #     for i, R in enumerate(nearest_Re):
+    #         Clmax[i] = max(table[1][i] for i in xrange(len(table[1])) if table[0][1][i] == R)
+    # except TypeError:
+    #     Clmax = max(table[1][i] for i in xrange(len(table[1])) if table[0][1][i] == nearest_Re)
     alfas = [0.0]*len(nearest_Re) + [5.0]*len(nearest_Re)
     points = zip(alfas, np.concatenate((nearest_Re, nearest_Re)))
     vals = np.array([Cl_dict[tuple(point)] for point in points])
@@ -96,7 +101,14 @@ def get_liftCurveInfo(Re, table):
     return Clalpha, Cl0, alpha0
 
 
-def get_Cl_fun(Re, Cl_table):
+def get_Cl_fun(Re, Cl_table, Clmax):
+    """
+
+    :param Re: Reynolds number. Should be a float.
+    :param Cl_table: Table of the form ((alphas, Reynolds numbers), CLs)
+    :param Clmax: Dictionary of the form {Reynolds number: Clmax} for all Reynolds numbers in Cl_table
+    :return:
+    """
     Clalpha, Cl0, alpha0 = get_liftCurveInfo(Re, Cl_table)
 
     def Cl_fun(alpha):
@@ -105,6 +117,7 @@ def get_Cl_fun(Re, Cl_table):
         :return: Lift coefficient
         """
         Cl = Cl0 + Clalpha*alpha
+        Cl[Cl > Clmax] = Clmax
         return Cl
 
     return Cl_fun

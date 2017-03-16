@@ -39,4 +39,14 @@ def axial_flight(local_solidity, prop, lambda_c, local_angle, alpha0, Clalpha, v
 
     u_resultant = np.sqrt(u_p**2 + u_t**2)
     rel_inflow_angle = np.arctan(u_p / u_t)
+    if any(u_resultant[u_resultant > 10000.]):
+        print "u_res = " + str(u_resultant)
+        print "u_t = " + str(u_t)
+        print "u_p = " + str(u_p)
+        print "v_tip = " + str(v_tip)
+        print "v_induced = " + str(v_induced)
+        print "omega = " + str(omega*60/2/np.pi)
+        print "r = " + str(r)
+        print "R = " + str(blade_rad)
+
     return local_inflow, rel_inflow_angle, u_resultant

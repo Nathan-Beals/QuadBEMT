@@ -1,7 +1,7 @@
 from pyOpt import Optimization
 from pyOpt import SLSQP
 from pyOpt import NSGA2
-from pyOpt import CONMIN
+from pyOpt import ALPSO
 import numpy as np
 import propeller
 import bemt
@@ -52,12 +52,8 @@ def objfun_optimize_chord(xn, **kwargs):
     fail = 0
     g = [1.0] * (2*len(r)+1)
 
-    # Calculate geometric constraint values and return immediately if there are any failures
+    # Calculate geometric constraint values
     g[1:] = get_geocons(chord, cval_max, radius)
-    # if any(geocon > 0.0 for geocon in g[1:]):
-    #     print "geocons violated"
-    #     print g[1:]
-    #     return f, g, fail
 
     prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy,
                                airfoils=airfoils, Cl_tables=Cl_tables, Cd_tables=Cd_tables)
@@ -187,7 +183,6 @@ def optimize_chord(**k):
     opt_prob_ft.addCon('thrust', 'i')
     opt_prob_ft.addConGroup('c_lower', n_elements, 'i')
     opt_prob_ft.addConGroup('c_upper', n_elements, 'i')
-    #print opt_prob_ft
 
     n_blades = k['n_blades']
     root_cutout = k['root_cutout']
@@ -206,27 +201,19 @@ def optimize_chord(**k):
     Cd_tables = k['Cd_tables']
     Cl_funs = k['Cl_funs']
     Cd_funs = k['Cd_funs']
+    tip_loss = k['tip_loss']
+    mach_corr = k['mach_corr']
 
     # Routine for optimizing chord with constant twist
     slsqp1 = SLSQP()
     slsqp1.setOption('IPRINT', 1)
     slsqp1.setOption('MAXIT', 200)
     slsqp1.setOption('ACC', 1e-7)
-    [fstr, xstr, inform] = slsqp1(opt_prob_ft, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
-                                  root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
-                                  airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=False,
-                                  mach_corr=False, omega=omega, twist=twist, allowable_Re=allowable_Re,
-                                  Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs)
-    # #print opt_prob_ft.solution(0)
-
-    # conmin = CONMIN()
-    # conmin.setOption('IPRINT', 1)
-    # [fstr, xstr, inform] = conmin(opt_prob_ft, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
-    #                               root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
-    #                               airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=False,
-    #                               mach_corr=False, omega=omega, twist=twist, allowable_Re=allowable_Re,
-    #                               Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs)
-    # print opt_prob.solution(0)
+    fstr, xstr, inform = slsqp1(opt_prob_ft, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
+                                root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
+                                airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=tip_loss,
+                                mach_corr=mach_corr, omega=omega, twist=twist, allowable_Re=allowable_Re,
+                                Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs)
 
     return fstr, xstr
 
@@ -250,7 +237,6 @@ def optimize_twist(**k):
     opt_prob_fc.addVarGroup('dtwist', n_elements-1, 'c', value=dtwist, lower=dtwist_lower, upper=dtwist_upper)
     opt_prob_fc.addObj('f')
     opt_prob_fc.addCon('thrust', 'i')
-    #print opt_prob_fc
 
     n_blades = k['n_blades']
     root_cutout = k['root_cutout']
@@ -268,30 +254,19 @@ def optimize_twist(**k):
     Cd_tables = k['Cd_tables']
     Cl_funs = k['Cl_funs']
     Cd_funs = k['Cd_funs']
+    tip_loss = k['tip_loss']
+    mach_corr = k['mach_corr']
 
     # Routine for optimizing twist with a constant chord
     slsqp2 = SLSQP()
     slsqp2.setOption('IPRINT', 1)
     slsqp2.setOption('MAXIT', 200)
     slsqp2.setOption('ACC', 1e-7)
-    [fstr, xstr, inform] = slsqp2(opt_prob_fc, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
-                                  root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
-                                  airfoils=airfoils, thrust=thrust, tip_loss=False, mach_corr=False, omega=omega,
-                                  chord=chord, allowable_Re=allowable_Re, Cl_tables=Cl_tables, Cd_tables=Cd_tables,
-                                  Cl_funs=Cl_funs, Cd_funs=Cd_funs)
-    #print opt_prob_fc.solution(0)
-
-    # nsga2 = NSGA2()
-    # nsga2.setOption('PrintOut', 2)
-    # nsga2.setOption('PopSize', 5000)
-    # nsga2.setOption('maxGen', 1000)
-    # nsga2.setOption('pCross_real', 0.85)
-    # #nsga2.setOption('xinit', 1)
-    # #nsga2.setOption('seed', 0.541)
-    # nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout, radius=radius, dy=dy,
-    #       dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=False,
-    #       mach_corr=False)
-    # print opt_prob.solution(0)
+    fstr, xstr, inform = slsqp2(opt_prob_fc, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
+                                root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
+                                airfoils=airfoils, thrust=thrust, tip_loss=tip_loss, mach_corr=mach_corr, omega=omega,
+                                chord=chord, allowable_Re=allowable_Re, Cl_tables=Cl_tables, Cd_tables=Cd_tables,
+                                Cl_funs=Cl_funs, Cd_funs=Cd_funs)
 
     return fstr, xstr
 
@@ -308,20 +283,24 @@ def main():
     pitch = 0.0
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
     allowable_Re = []
-    # allowable_Re = [1000000., 500000., 250000., 100000., 90000.]
+    #allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
     allowable_Re = [1000000.]
-    thrust = 6.31
-    max_chord = 0.4
+    thrust = 4.61
+    max_chord = 0.6
+    tip_loss = True
+    mach_corr = False
 
     Cl_tables = {}
     Cd_tables = {}
+    Clmax = {}
     # Get lookup tables
     if any(airfoil[0] != 'simple' for airfoil in airfoils):
         for airfoil in airfoils:
-            Cl_table, Cd_table = aero_coeffs.create_Cl_Cd_table(airfoil[0])
+            Cl_table, Cd_table, Clmax = aero_coeffs.create_Cl_Cd_table(airfoil[0])
 
             Cl_tables[airfoil[0]] = Cl_table
             Cd_tables[airfoil[0]] = Cd_table
+            Clmax[airfoil[0]] = Clmax
 
     # Create list of Cl functions. One for each Reynolds number. Cl_tables (and Cd_tables) will be empty for the
     # 'simple' case, therefore this will be skipped for the simple case. For the full table lookup case this will be
@@ -329,43 +308,53 @@ def main():
     Cl_funs = {}
     Cd_funs = {}
     if Cl_tables and allowable_Re:
-        Cl_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cl_fun(Re, Cl_tables[airfoils[0][0]]) for Re in allowable_Re]))
+        Cl_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cl_fun(Re, Cl_tables[airfoils[0][0]], Clmax[airfoils[0][0]][Re]) for Re in allowable_Re]))
         Cd_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cd_fun(Re, Cd_tables[airfoils[0][0]]) for Re in allowable_Re]))
 
     ###########################################
     # Set design variable bounds
     ###########################################
     # The DA4002 blade
-    # chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787, 0.1786,
-    #                   0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
-    # #chord = np.array([chord[i] for i in [0, 4, 8, 12, 16]])
-    # chord = np.array([chord[i] for i in [0, 3, 6, 9, 11, 13, 15, 17]])
-    # #chord = chord[-1] / r
-    # twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
-    #                   18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
-    # #twist = np.array([twist[i] for i in [0, 4, 8, 12, 16]])
-    # twist = np.array([twist[i] for i in [0, 3, 6, 9, 11, 13, 15, 17]])
+    chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787, 0.1786,
+                      0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
+    #chord = np.array([chord[i] for i in [0, 4, 8, 12, 16]])
+    #chord = np.array([chord[i] for i in [0, 3, 6, 9, 11, 13, 15, 17]])
+    chord = np.array([chord[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
+    #chord = chord[-1] / r
+    twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
+                      18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
+    #twist = np.array([twist[i] for i in [0, 4, 8, 12, 16]])
+    #twist = np.array([twist[i] for i in [0, 3, 6, 9, 11, 13, 15, 17]])
+    twist = np.array([twist[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
 
-    chord = np.array([0.10147787, 0.20044991, 0.29607168, 0.33003679, 0.3726372, 0.35854869, 0.36563709, 0.30389858,
-                      0.31942114, 0.25601913])
-    twist = np.array([0.90282909, 0.80216263, 0.66030778, 0.48890102, 0.3511895, 0.35159618, 0.29950526, 0.27742801,
-                      0.25864303, 0.24970718])
-    omega = 4648.28272561 * 2*np.pi/60
+    ##################### NSGA 10 pt Reallowed=1M T=6.31 xinit=base ##################
+    # chord = np.array([0.1074969, 0.20649294, 0.30477175, 0.34034408, 0.39389147, 0.38511651, 0.39240366, 0.32613037,
+    #                   0.33806846, 0.26398963])
+    # twist = np.array([0.90281547, 0.80337759, 0.636879, 0.46309343, 0.33774749, 0.33234442, 0.30418376, 0.2819689,
+    #                   0.26313925, 0.24413934])
+    # omega = 4611.67993997 * 2*np.pi/60
+
+    #################### NSGA 10 pt 5000p 500g Reallowed=All T=4.61 xinit=base tiploss #######
+    # chord = np.array([0.11470868, 0.21117422, 0.30252118, 0.39582241, 0.42498534, 0.41241736, 0.32928823, 0.23259937,
+    #                   0.17993009, 0.11100332])
+    # twist = np.array([0.55653743, 0.45683294, 0.38657942, 0.39545834, 0.3270524, 0.3053103, 0.27289751, 0.23934658,
+    #                   0.20193655, 0.034115])
+    # omega = 5286.48230542 *2*np.pi/60
 
     chord0 = chord[0]
     twist0 = twist[0]
     dchord = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
     dtwist = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
 
-    #omega = 5943.0 * 2*np.pi/60
+    omega = 5943.0 * 2*np.pi/60
     omega_upper = 7000 * 2*np.pi/60
-    omega_lower = 4500. * 2*np.pi/60
+    omega_lower = 2000. * 2*np.pi/60
 
     # # Twist at the hub must be less than or equal to arcsin(hub_height/hub_diameter), approx 23 degrees
     twist0_lower = 0.0 * 2 * np.pi / 360
     twist0_upper = 60.0 * 2 * np.pi / 360
     # Chord values at the hub must be less than or equal to the diameter of the hub
-    chord0_upper = 0.1198
+    chord0_upper = 0.12
     chord0_lower = 0.05
 
     # dtwist_start = 0.0 * 2 * np.pi / 360
@@ -380,6 +369,7 @@ def main():
 
     iteration = 0
     fit_old = 1000.
+    fit_2old = 1000.
     converged = False
     while not converged:
         iteration += 1
@@ -388,7 +378,8 @@ def main():
                                     dtwist=dtwist, dtwist_lower=dtwist_lower, dtwist_upper=dtwist_upper, n_blades=n_blades,
                                     root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                     airfoils=airfoils, thrust=thrust, chord=chord, allowable_Re=allowable_Re,
-                                    Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+                                    Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                    tip_loss=tip_loss, mach_corr=mach_corr)
 
         omega = xstr[0]
         twist = calc_twist_dist(xstr[1], xstr[2:])
@@ -399,12 +390,13 @@ def main():
                                     root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                     airfoils=airfoils, thrust=thrust, max_chord=max_chord, twist=twist,
                                     allowable_Re=allowable_Re, Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs,
-                                    Cd_funs=Cd_funs)
+                                    Cd_funs=Cd_funs, tip_loss=tip_loss, mach_corr=mach_corr)
 
         omega = xstr[0]
         chord = calc_chord_dist(xstr[1], xstr[2:])
 
-        converged = abs((fit_old - fstr) / fstr) < 0.00005
+        converged = abs((fit_old - fstr) / fstr) < 0.005 #and abs((fit_2old - fit_old) / fit_old) < 0.0005
+        fit_2old = fit_old
         fit_old = fstr
 
     print "omega = " + str(omega*60/2/np.pi)
@@ -418,7 +410,7 @@ def main():
                                    Cl_tables=Cl_tables, Cd_tables=Cd_tables)
 
         return bemt.bemt_axial(prop, pitch, o, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                               tip_loss=False, mach_corr=False, output='long')
+                               tip_loss=tip_loss, mach_corr=mach_corr, output='long')
 
     perf_opt = get_performance(omega, chord, twist)
     perf_start = get_performance(omega_start, chord_start, twist_start)

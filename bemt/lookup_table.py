@@ -14,6 +14,7 @@ def create_table(airfoil_name):
     alphas = np.array([])
     CLs = np.array([])
     CDs = np.array([])
+    Clmax = {}
     step = 0.1
     i = 0
     for f in files:
@@ -33,26 +34,32 @@ def create_table(airfoil_name):
         alpha = alpha[order]
         CL = CL[order]
         CD = CD[order]
+        Clmax[Re] = max(CL)
 
-        alpha_full = np.arange(-10., 20.1, step)  # Change the step size to reflect the step size polar files
-        alpha_pad_low = np.arange(alpha_full[0], alpha[0], step)
-        alpha_pad_high = np.arange(alpha[-1]+step, alpha_full[-1]+step, step)
-        alpha_table = np.concatenate((alpha_pad_low, alpha, alpha_pad_high))
-        coeff_pad_low = np.empty(len(alpha_pad_low))*np.nan
-        coeff_pad_high = np.empty(len(alpha_pad_high))*np.nan
-        # CL_pad_low = np.ones(len(alpha_pad_low)) * -10000
-        # CL_pad_high = np.ones(len(alpha_pad_high)) * -10000
-        # CD_pad_low = np.ones(len(alpha_pad_low)) * 10000
-        # CD_pad_high = np.ones(len(alpha_pad_high)) * 10000
-        CL_table = np.concatenate((coeff_pad_low, CL, coeff_pad_high))
-        CD_table = np.concatenate((coeff_pad_low, CD, coeff_pad_high))
+        ##################### Uncomment for padding table with nan ################################
+        # alpha_full = np.arange(-10., 20.1, step)  # Change the step size to reflect the step size polar files
+        # alpha_pad_low = np.arange(alpha_full[0], alpha[0], step)
+        # alpha_pad_high = np.arange(alpha[-1]+step, alpha_full[-1]+step, step)
+        # alpha_table = np.concatenate((alpha_pad_low, alpha, alpha_pad_high))
+        # coeff_pad_low = np.empty(len(alpha_pad_low))*np.nan
+        # coeff_pad_high = np.empty(len(alpha_pad_high))*np.nan
+        # # CL_pad_low = np.ones(len(alpha_pad_low)) * -10000
+        # # CL_pad_high = np.ones(len(alpha_pad_high)) * -10000
+        # # CD_pad_low = np.ones(len(alpha_pad_low)) * 10000
+        # # CD_pad_high = np.ones(len(alpha_pad_high)) * 10000
+        # CL_table = np.concatenate((coeff_pad_low, CL, coeff_pad_high))
+        # CD_table = np.concatenate((coeff_pad_low, CD, coeff_pad_high))
+        # reynolds_numbers = np.concatenate((reynolds_numbers, np.ones(len(alpha_table))*Re))
+        # alphas = np.concatenate((alphas, alpha_table))
+        # CLs = np.concatenate((CLs, CL_table))
+        # CDs = np.concatenate((CDs, CD_table))
 
-        reynolds_numbers = np.concatenate((reynolds_numbers, np.ones(len(alpha_table))*Re))
-        alphas = np.concatenate((alphas, alpha_table))
-        CLs = np.concatenate((CLs, CL_table))
-        CDs = np.concatenate((CDs, CD_table))
+        reynolds_numbers = np.concatenate((reynolds_numbers, np.ones(len(alpha))*Re))
+        alphas = np.concatenate((alphas, alpha))
+        CLs = np.concatenate((CLs, CL))
+        CDs = np.concatenate((CDs, CD))
         i += 1
-    return alphas, reynolds_numbers, CLs, CDs
+    return alphas, reynolds_numbers, CLs, CDs, Clmax
 
 
 def interp_weights(xy, uv, d=2):
