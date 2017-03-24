@@ -8,10 +8,10 @@ import itertools
 
 
 def create_Cl_Cd_table(airfoil):
-    [alphas, Re, CL, CD] = lookup_table.create_table(airfoil)
+    alphas, Re, CL, CD, Clmax = lookup_table.create_table(airfoil)
     Cl_table = ((alphas, Re), CL)
     Cd_table = ((alphas, Re), CD)
-    return Cl_table, Cd_table
+    return Cl_table, Cd_table, Clmax
 
 
 def get_liftCurveInfo(Re, table):
@@ -41,7 +41,7 @@ def get_liftCurveInfo(Re, table):
     return Clalpha, Cl0, alpha0
 
 
-def get_Cl_fun(Re, Cl_table):
+def get_Cl_fun(Re, Cl_table, Clmax):
     Clalpha, Cl0, alpha0 = get_liftCurveInfo(Re, Cl_table)
 
     def Cl_fun(alpha):
@@ -50,6 +50,7 @@ def get_Cl_fun(Re, Cl_table):
         :return: Lift coefficient
         """
         Cl = Cl0 + Clalpha*alpha
+        Cl[Cl > Clmax] = Clmax
         return Cl
 
     return Cl_fun
@@ -83,115 +84,66 @@ def get_Cd_fun(Re, Cd_table):
     return Cd_fun
 
 
-def interp2d_fun(table):
-    alpha = table[0][0]
-    Re = table[0][1]
-    coeff = table[1]
-    print "len(alpha) = " + str(len(alpha))
-    print "len(Re) = " + str(len(Re))
-    print "len"
-    return interp2d(Re, alpha, coeff)
-
-
 def closest_Re(Re, Res_in_table):
-    return np.array([min(Res_in_table, key=lambda x: abs(x-Re))])
+    if type(Re) is not np.ndarray:
+        try:
+            Re = np.array([float(Re)])
+        except TypeError:
+            Re = np.array(Re)
+    return np.array([min(Res_in_table, key=lambda x: abs(x-R)) for R in Re])
 
 
 def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
 
 
-def get_Cl_Cd(aoa, Re, tables):
-    aoa = np.array(aoa)
-    Cl_table = tables[0]
-    Cd_table = tables[1]
-    grid_aoa_deg = [a * 360/2/np.pi for a in Cl_table[0][0]]
-    new_aoa_deg = aoa * 360/2/np.pi
-
-    xy = np.column_stack((grid_aoa_deg, Cl_table[0][1]))
-    try:
-        uv = np.array(zip(new_aoa_deg, Re))
-    except TypeError:
-        uv = np.array([aoa, Re])
-
-    vtx, wts = interp_weights(xy, uv)
-
-    Cl = interpolate(Cl_table[1], vtx, wts)
-    Cd = interpolate(Cd_table[1], vtx, wts)
-
-    return Cl, Cd
-
-
-def interp_weights(xy, uv, dim=2):
-    tri = qhull.Delaunay(xy)
-    simplex = tri.find_simplex(uv)
-    vertices = np.take(tri.simplices, simplex, axis=0)
-    temp = np.take(tri.transform, simplex, axis=0)
-    delta = uv - temp[:, dim]
-    bary = np.einsum('njk,nk->nj', temp[:, :dim, :], delta)
-    return vertices, np.hstack((bary, 1 - bary.sum(axis=1, keepdims=True)))
-
-
-def interpolate(values, vtx, wts):
-    return np.einsum('nj,nj->n', np.take(values, vtx), wts)
-
-
 def main():
     airfoil = 'SDA1075_494p'
-    Cl_table, Cd_table = create_Cl_Cd_table(airfoil)
-    alphas = np.linspace(-10., 40., 60)
-    alphas_rad = np.linspace(-10., 40., 60) * np.pi / 180
-    #target_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
-    target_Re = 10000.
-    # plt.figure(1)
-    # for Re in target_Re:
-    #     Cl_fun = get_Cl_fun(Re, Cl_table)
-    #     Cd_fun = get_Cd_fun(Re, Cd_table)
-    #     Cls = Cl_fun(alphas_rad)
-    #     Cds = Cd_fun(alphas_rad)
-    #     plt.plot(alphas, Cds)
-    #     for i in xrange(len(alphas)):
-    #         if Cds[i] < 0.0:
-    #             print "Cd = %s at Re = %s and alpha = %s" % (str(Cds[i]), str(Re), alphas[i])
-    # plt.show()
+    Cl_table, Cd_table, Clmax = create_Cl_Cd_table(airfoil)
+    alphas = np.linspace(-5., 25., 100)
+    alphas_rad = np.linspace(-5., 25., 100) * np.pi / 180
+    target_Re = [250000., 100000., 60000.,  40000., 20000.]
+    markers = ['kD-', 'ko-', 'ks-', 'kv-', 'k*-']
 
-    #Get values from table
-    Cl_dict = dict(zip(zip(Cl_table[0][0], Cl_table[0][1]), Cl_table[1]))
-    Cd_dict = dict(zip(zip(Cd_table[0][0], Cd_table[0][1]), Cd_table[1]))
-    indices = [i for i in xrange(len(Cl_table[0][1])) if isclose(Cl_table[0][1][i], target_Re)]
-    alphas_table = np.array([Cl_table[0][0][i] for i in indices])
-    Cls_table = np.array([Cl_table[1][i] for i in indices])
-    Cds_table = np.array([Cd_table[1][i] for i in indices])
+    results = {}
+    for Re in target_Re:
+        Cl_fun = get_Cl_fun(Re, Cl_table, Clmax[Re])
+        Cd_fun = get_Cd_fun(Re, Cd_table)
+        Cls = Cl_fun(alphas_rad)
+        Cds = Cd_fun(alphas_rad)
+        results[Re] = (Cls, Cds)
 
-    # pts = ((1.2, 100000.), (3.4, 100000.))
-    # aoa = [pt[0]*2*np.pi/360 for pt in pts]
-    # Re = [pt[1] for pt in pts]
-    # Cl_table_vals = [Cl_dict[pt] for pt in pts]
-    # Cd_table_vals = [Cd_dict[pt] for pt in pts]
-    # Cl, Cd = get_Cl_Cd(aoa, Re, (Cl_table, Cd_table))
-    #
-    # print "Table = " + str(Cl_table_vals) + " " + str(Cd_table_vals)
-    # print "Interp + " + str(Cl) + " " + str(Cd)
+    # #Get values from table
+    # Cl_dict = dict(zip(zip(Cl_table[0][0], Cl_table[0][1]), Cl_table[1]))
+    # Cd_dict = dict(zip(zip(Cd_table[0][0], Cd_table[0][1]), Cd_table[1]))
+    # indices = [i for i in xrange(len(Cl_table[0][1])) if isclose(Cl_table[0][1][i], target_Re)]
+    # alphas_table = np.array([Cl_table[0][0][i] for i in indices])
+    # Cls_table = np.array([Cl_table[1][i] for i in indices])
+    # Cds_table = np.array([Cd_table[1][i] for i in indices])
 
-
-    Cl_fun = get_Cl_fun(target_Re, Cl_table)
-    Cd_fun = get_Cd_fun(target_Re, Cd_table)
-    #Cd_fun = interp2d_fun(Cd_table)
-    Cls = Cl_fun(alphas_rad)
-    Cds = Cd_fun(alphas_rad)
-
-    # plt.figure(1)
-    # plt.plot(alphas, Cls, alphas_table, Cls_table)
-    # plt.xlabel('angle of attack')
-    # plt.ylabel('Cl')
-    # plt.legend(['Function', 'Table'])
+    plt.figure(1)
+    for Re, marker in zip(reversed(target_Re), reversed(markers)):
+        plt.plot(alphas, results[Re][0], marker, markevery=6, markerfacecolor='white')
+    plt.xlim([-5., 25.])
+    plt.ylim([-1.0, 2.0])
+    plt.xlabel(r'$\alpha,\,\mathrm{deg}$', fontsize=18)
+    plt.ylabel(r'$\mathrm{C}_\mathrm{l}$', fontsize=18)
+    plt.legend(['Re=20k', 'Re=40k', 'Re=60k', 'Re=100k', 'Re=250k'], loc='upper left')
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tick_params(axis='both', which='minor', labelsize=14)
+    plt.grid()
 
     plt.figure(2)
-    plt.plot(alphas, Cds),
-    plt.plot(alphas_table, Cds_table, 'r-')
-    plt.xlabel('angle of attack')
-    plt.ylabel('Cd')
-    #plt.legend(['Function', 'Table'])
+    for Re, marker in zip(reversed(target_Re), reversed(markers)):
+        plt.plot(alphas, results[Re][1], marker, markevery=6, markerfacecolor='white')
+    plt.xlim([-5., 25.])
+    plt.ylim([0.0, 0.35])
+    plt.xlabel(r'$\alpha,\,\mathrm{deg}$', fontsize=18)
+    plt.ylabel(r'$\mathrm{C}_\mathrm{d}$', fontsize=18)
+    plt.legend(['Re=20k', 'Re=40k', 'Re=60k', 'Re=100k', 'Re=250k'], loc='upper left')
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tick_params(axis='both', which='minor', labelsize=14)
+    plt.grid()
 
     plt.show()
 

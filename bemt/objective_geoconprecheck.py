@@ -22,8 +22,6 @@ def counted(f):
 @counted
 def objfun(xn, **kwargs):
 
-    #print 'objfun called'
-
     radius = kwargs['radius']
     r = kwargs['r']
     y = kwargs['y']
@@ -42,6 +40,7 @@ def objfun(xn, **kwargs):
     Cd_funs = kwargs['Cd_funs']
     allowable_Re = kwargs['allowable_Re']
     opt_method = kwargs['opt_method']
+    alt = kwargs['alt']
     omega = xn[0]
     twist0 = xn[1]
     chord0 = xn[2]*radius
@@ -50,9 +49,6 @@ def objfun(xn, **kwargs):
 
     twist = calc_twist_dist(twist0, dtwist)
     chord = calc_chord_dist(chord0, dchord)
-
-    # int_twist = np.array(xn[:len(r)])
-    # int_chord = np.array([x*radius for x in xn[len(r):]])
 
     f = 1000.
     fail = 0
@@ -71,8 +67,8 @@ def objfun(xn, **kwargs):
                                Cd_tables=Cd_tables)
 
     try:
-        dT, P = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                                tip_loss=tip_loss, mach_corr=mach_corr)
+        dT, P, FM = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                    tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
     except (FloatingPointError, IndexError):
         fail = 1
         return f, g, fail
@@ -122,6 +118,7 @@ def main():
     n_blades = 2
     n_elements = 10
     radius = unit_conversion.in2m(9.0)/2
+    #radius = 0.1930
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
     dr = float(1)/n_elements
@@ -132,7 +129,8 @@ def main():
     allowable_Re = []
     allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
     thrust = 4.61
-    max_chord = 0.6
+    max_chord = 0.4
+    alt = 0
     tip_loss = True
     mach_corr = False
 
@@ -179,12 +177,11 @@ def main():
     twist0_start = twist0_base
     chord0_start = chord0_base
 
-    #################### NSGA 10 pt 5000p 500g Reallowed=All T=4.61 xinit=base tiploss #######
-    # chord = np.array([0.11470868, 0.21117422, 0.30252118, 0.39582241, 0.42498534, 0.41241736, 0.32928823, 0.23259937,
-    #                   0.17993009, 0.11100332])
-    # twist = np.array([0.55653743, 0.45683294, 0.38657942, 0.39545834, 0.3270524, 0.3053103, 0.27289751, 0.23934658,
-    #                   0.20193655, 0.034115])
-    # omega_start = 5286.48230542 *2*np.pi/60
+    # chord = np.array([0.11958375, 0.21820237, 0.2761888, 0.29582408, 0.2670838, 0.25332996, 0.21333354, 0.17139233,
+    #                   0.09985169, 0.00114413])
+    # twist = np.array([0.34160335, 0.39718607, 0.37649986, 0.35195434, 0.26725317, 0.25970378, 0.24134294, 0.19232958,
+    #                   0.17713771, 0.02991615])
+    # omega_start = 6574.95092927 * 2*np.pi/60
     # chord_start = chord
     # twist_start = twist
     # dchord_start = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
@@ -198,13 +195,13 @@ def main():
     # twist0_start = 0.0
     # chord0_start = 0.0
 
-    omega_lower = 2000.0 * 2*np.pi/60
+    omega_lower = 4000.0 * 2*np.pi/60
     omega_upper = 7000.0 * 2*np.pi/60
 
     twist0_lower = 0.0 * 2 * np.pi / 360
-    twist0_upper = 60.0 * 2 * np.pi / 360
+    twist0_upper = 50.0 * 2 * np.pi / 360
 
-    chord0_upper = 0.12
+    chord0_upper = 0.1198
     chord0_lower = 0.05
 
     dtwist_lower = -10.0 * 2 * np.pi / 360
@@ -224,19 +221,19 @@ def main():
     opt_prob.addConGroup('c_upper', n_elements, 'i')
     print opt_prob
 
-    # opt_method = 'nograd'
-    # nsga2 = NSGA2()
-    # nsga2.setOption('PrintOut', 2)
-    # nsga2.setOption('PopSize', 5000)
-    # nsga2.setOption('maxGen', 500)
-    # nsga2.setOption('pCross_real', 0.85)
-    # nsga2.setOption('xinit', 1)
-    # fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout,
-    #                            radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust,
-    #                            max_chord=max_chord, tip_loss=tip_loss, mach_corr=mach_corr, Cl_funs=Cl_funs,
-    #                            Cd_funs=Cd_funs, Cl_tables=Cl_tables, Cd_tables=Cd_tables, allowable_Re=allowable_Re,
-    #                            opt_method=opt_method)
-    # print opt_prob.solution(0)
+    opt_method = 'nograd'
+    nsga2 = NSGA2()
+    nsga2.setOption('PrintOut', 2)
+    nsga2.setOption('PopSize', 5000)
+    nsga2.setOption('maxGen', 500)
+    nsga2.setOption('pCross_real', 0.85)
+    nsga2.setOption('xinit', 1)
+    fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout,
+                               radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust,
+                               max_chord=max_chord, tip_loss=tip_loss, mach_corr=mach_corr, Cl_funs=Cl_funs,
+                               Cd_funs=Cd_funs, Cl_tables=Cl_tables, Cd_tables=Cd_tables, allowable_Re=allowable_Re,
+                               opt_method=opt_method, alt=alt)
+    print opt_prob.solution(0)
 
     # opt_method = 'nograd'
     # xstart_alpso = np.concatenate((np.array([omega_start, twist0_start, chord0_start]), dtwist_start, dchord_start))
@@ -252,17 +249,18 @@ def main():
     #                            Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method)
     # print opt_prob.solution(0)
 
-    opt_method = 'grad'
-    slsqp = SLSQP()
-    slsqp.setOption('IPRINT', 1)
-    slsqp.setOption('MAXIT', 500)
-    slsqp.setOption('ACC', 1e-8)
-    fstr, xstr, inform = slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
-                               root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
-                               airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=tip_loss,
-                               mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables,
-                               Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method)
-    print opt_prob.solution(0)
+    # opt_method = 'grad'
+    # slsqp = SLSQP()
+    # slsqp.setOption('IPRINT', 1)
+    # slsqp.setOption('MAXIT', 1000)
+    # slsqp.setOption('ACC', 1e-7)
+    # fstr, xstr, inform = slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
+    #                            root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
+    #                            airfoils=airfoils, thrust=thrust, max_chord=max_chord,
+    #                            tip_loss=tip_loss, mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+    #                            Cl_tables=Cl_tables, Cd_tables=Cd_tables, allowable_Re=allowable_Re,
+    #                            opt_method=opt_method, alt=alt)
+    # print opt_prob.solution(0)
 
     def get_performance(o, c, t):
         chord_meters = c * radius
@@ -270,7 +268,7 @@ def main():
                                    Cl_tables=Cl_tables, Cd_tables=Cd_tables)
 
         return bemt.bemt_axial(prop, pitch, o, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                               tip_loss=tip_loss, mach_corr=mach_corr, output='long')
+                               tip_loss=tip_loss, mach_corr=mach_corr, output='long', alt=alt)
 
     omega = xstr[0]
     twist0 = xstr[1]

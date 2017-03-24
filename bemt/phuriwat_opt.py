@@ -40,6 +40,7 @@ def objfun_optimize_chord(xn, **kwargs):
     Cl_funs = kwargs['Cl_funs']
     Cd_funs = kwargs['Cd_funs']
     twist = kwargs['twist']
+    alt = kwargs['alt']
 
     # The algorithm works with radius-normalized chord lengths, but the BEMT takes real chord lengths, so multiply by R
     omega = xn[0]
@@ -59,8 +60,8 @@ def objfun_optimize_chord(xn, **kwargs):
                                airfoils=airfoils, Cl_tables=Cl_tables, Cd_tables=Cd_tables)
 
     try:
-        dT, P = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                                tip_loss=tip_loss, mach_corr=mach_corr)
+        dT, P, FM = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
     except FloatingPointError:
         fail = 1
         return f, g, fail
@@ -97,6 +98,7 @@ def objfun_optimize_twist(xn, **kwargs):
     Cl_funs = kwargs['Cl_funs']
     Cd_funs = kwargs['Cd_funs']
     chord = kwargs['chord']*radius
+    alt = kwargs['alt']
 
     # The algorithm works with radius-normalized chord lengths, but the BEMT takes real chord lengths, so multiply by R
     omega = xn[0]
@@ -113,8 +115,8 @@ def objfun_optimize_twist(xn, **kwargs):
                                airfoils=airfoils, Cl_tables=Cl_tables, Cd_tables=Cd_tables)
 
     try:
-        dT, P = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                                tip_loss=tip_loss, mach_corr=mach_corr)
+        dT, P, FM = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
     except FloatingPointError:
         fail = 1
         return f, g, fail
@@ -203,6 +205,7 @@ def optimize_chord(**k):
     Cd_funs = k['Cd_funs']
     tip_loss = k['tip_loss']
     mach_corr = k['mach_corr']
+    alt = k['alt']
 
     # Routine for optimizing chord with constant twist
     slsqp1 = SLSQP()
@@ -213,7 +216,7 @@ def optimize_chord(**k):
                                 root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                 airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=tip_loss,
                                 mach_corr=mach_corr, omega=omega, twist=twist, allowable_Re=allowable_Re,
-                                Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+                                Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs, alt=alt)
 
     return fstr, xstr
 
@@ -256,6 +259,7 @@ def optimize_twist(**k):
     Cd_funs = k['Cd_funs']
     tip_loss = k['tip_loss']
     mach_corr = k['mach_corr']
+    alt = k['alt']
 
     # Routine for optimizing twist with a constant chord
     slsqp2 = SLSQP()
@@ -266,7 +270,7 @@ def optimize_twist(**k):
                                 root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                 airfoils=airfoils, thrust=thrust, tip_loss=tip_loss, mach_corr=mach_corr, omega=omega,
                                 chord=chord, allowable_Re=allowable_Re, Cl_tables=Cl_tables, Cd_tables=Cd_tables,
-                                Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+                                Cl_funs=Cl_funs, Cd_funs=Cd_funs, alt=alt)
 
     return fstr, xstr
 
@@ -274,7 +278,8 @@ def optimize_twist(**k):
 def main():
     n_blades = 2
     n_elements = 10
-    radius = unit_conversion.in2m(9.0)/2
+    #radius = unit_conversion.in2m(9.0)/2
+    radius = 0.193
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
     dr = float(1)/n_elements
@@ -283,10 +288,10 @@ def main():
     pitch = 0.0
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
     allowable_Re = []
-    #allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
-    allowable_Re = [1000000.]
-    thrust = 4.61
+    allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
+    thrust = 5.5
     max_chord = 0.6
+    alt = 4000
     tip_loss = True
     mach_corr = False
 
@@ -341,20 +346,26 @@ def main():
     #                   0.20193655, 0.034115])
     # omega = 5286.48230542 *2*np.pi/60
 
+    chord = np.array([0.08527494, 0.18305166, 0.28003061, 0.37723735, 0.39791253, 0.38551352, 0.30090341, 0.20180039,
+                      0.14683824, 0.06464163])
+    twist = np.array([0.00114182, 0.16927357, 0.33062163, 0.36775474, 0.32781283, 0.30751832, 0.27097053, 0.24367986,
+                      0.21398367, 0.10101229])
+    omega = 2675.92469603 * 2*np.pi/60
+
     chord0 = chord[0]
     twist0 = twist[0]
     dchord = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
     dtwist = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
 
-    omega = 5943.0 * 2*np.pi/60
+    #omega = 5943.0 * 2*np.pi/60
     omega_upper = 7000 * 2*np.pi/60
     omega_lower = 2000. * 2*np.pi/60
 
     # # Twist at the hub must be less than or equal to arcsin(hub_height/hub_diameter), approx 23 degrees
     twist0_lower = 0.0 * 2 * np.pi / 360
-    twist0_upper = 60.0 * 2 * np.pi / 360
+    twist0_upper = 0.1 * 2 * np.pi / 360
     # Chord values at the hub must be less than or equal to the diameter of the hub
-    chord0_upper = 0.12
+    chord0_upper = 0.09
     chord0_lower = 0.05
 
     # dtwist_start = 0.0 * 2 * np.pi / 360
@@ -379,7 +390,7 @@ def main():
                                     root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                     airfoils=airfoils, thrust=thrust, chord=chord, allowable_Re=allowable_Re,
                                     Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                                    tip_loss=tip_loss, mach_corr=mach_corr)
+                                    tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
 
         omega = xstr[0]
         twist = calc_twist_dist(xstr[1], xstr[2:])
@@ -390,7 +401,7 @@ def main():
                                     root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                     airfoils=airfoils, thrust=thrust, max_chord=max_chord, twist=twist,
                                     allowable_Re=allowable_Re, Cl_tables=Cl_tables, Cd_tables=Cd_tables, Cl_funs=Cl_funs,
-                                    Cd_funs=Cd_funs, tip_loss=tip_loss, mach_corr=mach_corr)
+                                    Cd_funs=Cd_funs, tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
 
         omega = xstr[0]
         chord = calc_chord_dist(xstr[1], xstr[2:])
@@ -410,7 +421,7 @@ def main():
                                    Cl_tables=Cl_tables, Cd_tables=Cd_tables)
 
         return bemt.bemt_axial(prop, pitch, o, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                               tip_loss=tip_loss, mach_corr=mach_corr, output='long')
+                               tip_loss=tip_loss, mach_corr=mach_corr, output='long', alt=alt)
 
     perf_opt = get_performance(omega, chord, twist)
     perf_start = get_performance(omega_start, chord_start, twist_start)

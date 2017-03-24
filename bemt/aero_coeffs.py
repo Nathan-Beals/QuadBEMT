@@ -52,23 +52,6 @@ def get_Cd(aoa, Re, table):
         return Cd
 
 
-def get_Cl_Cd(aoa, Re, tables):
-    Cl_table = tables[0]
-    Cd_table = tables[1]
-    grid_aoa_deg = Cl_table[0][0] * 360/2/np.pi
-    new_aoa_deg = aoa * 360/2/np.pi
-
-    xy = np.vstack((grid_aoa_deg, Cl_table[0][1]))
-    uv = np.array(zip(new_aoa_deg, Re))
-
-    vtx, wts = interp_weights(xy, uv)
-
-    Cl = interpolate(Cl_table[1], vtx, wts)
-    Cd = interpolate(Cd_table[1], vtx, wts)
-
-    return Cl, Cd
-
-
 def get_liftCurveInfo(Re, table):
     """
     Calculate the lift curve slope, lift coefficient at zero angle of attack, and zero lift angle of attack along the
@@ -162,17 +145,3 @@ def closest_Re(Re, Res_in_table):
 
 def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
     return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
-
-
-def interp_weights(xy, uv, dim=2):
-    tri = qhull.Delaunay(xy)
-    simplex = tri.find_simplex(uv)
-    vertices = np.take(tri.simplices, simplex, axis=0)
-    temp = np.take(tri.transform, simplex, axis=0)
-    delta = uv - temp[:, dim]
-    bary = np.einsum('njk,nk->nj', temp[:, :dim, :], delta)
-    return vertices, np.hstack((bary, 1 - bary.sum(axis=1, keepdims=True)))
-
-
-def interpolate(values, vtx, wts):
-    return np.einsum('nj,nj->n', np.take(values, vtx), wts)

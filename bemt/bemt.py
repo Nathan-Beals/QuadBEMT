@@ -10,6 +10,7 @@ A = -0.0065    # lapse rate in /m
 Gs = -9.8    # Acceleration due to gravity in m/s**2
 TEMP_SSL = 288.16    # Standard sea level temp in K
 PRESS_SSL = 1.01325 * 10**5    # Standard sea level pressure in N/m**2
+kine_visc = 1.460 * 10**-5  # Kinematic viscosity of air
 
 
 def bemt_forward_flight(propeller, pitch, omega, alpha, T_req, v_inf, n_azi_elements, v_climb=0, alt=0, tip_loss=True,
@@ -125,8 +126,9 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
     temp = TEMP_SSL - A * alt_geop
     press = PRESS_SSL * (temp/TEMP_SSL)**(-Gs/(A*R))
     dens = press/(R*temp)
+    if alt != 0:
+        dens = 0.8194
     spd_snd = np.sqrt(GAMMA * R * temp)
-    kine_visc = 1.460 * 10**-5
 
     # Define blade geometry parameters. Pitch, chord, and r are all lists of the same length defining the blade
     # geometry at a specific span location r
@@ -184,13 +186,8 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
     if allowable_Re:
         Re = np.array([min(allowable_Re, key=lambda x: abs(x-rn)) for rn in Re])
 
-    # Now calculate the effective angle of attack at the blade stations. Lift and drag coefficients were only tabulated
-    # for approximately -10 deg < aoa < 20 deg. Therefore fail cases with angles of attack that lie outside of those
-    # bounds, as the data (or polyfits based on the data) may not be reliable.
+    # Now calculate the effective angle of attack at the blade stations.
     eff_aoa = local_angle - rel_inflow_angle
-    # if any(a < -10. or a > 20. for a in eff_aoa*180/np.pi):
-    #     print "angle of attack out of bounds"
-    #     raise IndexError
 
     # If we are using only a selection of discrete Reynolds numbers for the sake of calculating lift and drag
     # coefficients, calculate using the linearized Cl functions and polynomial Cd functions found in aero_coeffs.py.
@@ -222,31 +219,17 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
     Q = sum(dQ)
     P = sum(dP)
 
-    # if T > 10:
-    #     print "dT = " + str(dT)
-    #     print "dP = " + str(dP)
-    #     print "Cd = " + str(Cd)
-    #     print "Cl = " + str(Cl)
-    #     print "u_res = " + str(u_resultant)
-    #     print "dL = " + str(dL)
-    #     print "dD = " + str(dD)
-    #     print "dFx = " + str(dFx)
-    #     print "dFz = " + str(dFz)
-    #     print "inflow = " + str(local_inflow)
-    #     print "phi = " + str(rel_inflow_angle)
-    #     print "eff_aoa = " + str(eff_aoa)
-    #     print "Re = " + str(Re)
-
     CT = T / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**2)
     CP = P / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
     CQ = Q / (dens * np.pi * blade_rad**3 * (omega*blade_rad)**2)
 
     prop_CT = T / (dens * (omega/2/np.pi)**2 * (blade_rad*2)**4)
     prop_CP = P / (dens * (omega/2/np.pi)**3 * (blade_rad*2)**5)
+    FM = prop_CT**(3./2)/np.sqrt(2)/prop_CP
 
     if output == 'short':
-        return dT, P
-    return dT, dP, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re
+        return dT, P, FM
+    return dT, dP, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re, prop_CT, prop_CP
 
 
 
