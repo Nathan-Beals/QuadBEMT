@@ -90,8 +90,8 @@ y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/radius
 pitch = 0.0
 airfoils = (('SDA1075_494p', 0.0, 1.0),)
-allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
-#allowable_Re = []
+#allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
+allowable_Re = []
 tip_loss = True
 mach_corr = False
 
@@ -132,119 +132,128 @@ chord_18e = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.
 twist_18e = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009, 19.814,
                       18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
 
-# # Construct the CT vs RPM and CP vs RPM for Static Hover
-# r75_ind = min(range(len(r)), key=lambda i: abs(r[i]-0.75))
-# r75 = r[r75_ind]
-# chord75 = chord_18e[r75_ind] * radius
-# Re75 = [o*2*np.pi*r75*radius*chord75/kine_visc for o in rpm_static*2*np.pi/60]
-# CT_static = []
-# CP_static = []
-# for omega in rpm_static*2*np.pi/60:
-#     this_CT, this_CP = get_performance(omega, chord_18e, twist_18e, 0)
-#     CT_static.append(this_CT)
-#     CP_static.append(this_CP)
-# CT_static = np.array(CT_static)
-# CP_static = np.array(CP_static)
-#
-# fig1 = plt.figure()
-# ax1 = fig1.add_subplot(111)
-# ax1.plot(rpm_static, CT_exp_static, 'ko-', markerfacecolor='white')
-# ax1.plot(rpm_static, CT_static, 'ks-', markerfacecolor='white')
-# ax1.plot(rpm_static, CP_exp_static, 'ko-')
-# ax1.plot(rpm_static, CP_static, 'ks-')
-# ax1.set_xlim([0, 6500])
-# ax1.set_ylim([0.0, 0.20])
-# ax1.set_xlabel(r'$\Omega\,\mathrm{in}\,\mathrm{RPM}$', fontsize=18)
-# ax1.set_ylabel(r'$\mathrm{C}_\mathrm{T},\, \mathrm{ C}_\mathrm{P}$', fontsize=18)
-# ax1.grid()
-# ax1.legend([r'$\mathrm{C}_\mathrm{T}\,\mathrm{UIUC}$', r'$\mathrm{C}_\mathrm{T}\,\mathrm{BEMT}\,\mathrm{XFOIL}$',
-#             r'$\mathrm{C}_\mathrm{P}\,\mathrm{UIUC}$', r'$\mathrm{C}_\mathrm{P}\,\mathrm{BEMT}\,\mathrm{XFOIL}$'], loc=2, fontsize=14)
-# ax1.tick_params(axis='both', which='major', labelsize=14)
-# ax1.tick_params(axis='both', which='minor', labelsize=14)
-# ax2 = ax1.twiny()
-# Re6500 = 6500*2*np.pi/60*r75*radius*chord75/kine_visc
-# ax2.plot(range(int(round(Re6500)/1000)), np.ones(int(round(Re6500)/1000))*0.2)
-# ax2.set_ylim([0.0, 0.2])
-# ax2.set_xlabel(r'$\mathrm{Re}_{3/4}\,\mathrm{(10}^\mathrm{3}\mathrm{)}$', fontsize=18)
-# ax2.tick_params(axis='both', which='major', labelsize=14)
-# ax2.tick_params(axis='both', which='minor', labelsize=14)
-# plt.show()
+# Construct the CT vs RPM and CP vs RPM for Static Hover
+r75_ind = min(range(len(r)), key=lambda i: abs(r[i]-0.75))
+r75 = r[r75_ind]
+chord75 = chord_18e[r75_ind] * radius
+Re75 = [o*2*np.pi*r75*radius*chord75/kine_visc for o in rpm_static*2*np.pi/60]
+CT_static = []
+CP_static = []
+for omega in rpm_static*2*np.pi/60:
+    this_CT, this_CP = get_performance(omega, chord_18e, twist_18e, 0)
+    CT_static.append(this_CT)
+    CP_static.append(this_CP)
+CT_static = np.array(CT_static)
+CP_static = np.array(CP_static)
 
-# Construct the CT vs J and CP vs J for 5000 RPM
-chord75 = chord_18e[int(round(len(r)*0.75))]*radius
-r75 = r[int(round(len(r)*0.75))]
-
-omegas_5000 = rpm_5000rpm * 2*np.pi/60
-n_5000 = rpm_5000rpm / 60
-v_climbs_5000 = np.array([j*n*2*radius for j, n in zip(J_5000rpm, n_5000)])
-Re75_5000 = 5000.*2*np.pi/60**r75*radius*chord75/kine_visc
-
-CT_5000rpm = []
-CP_5000rpm = []
-for omega, v_climb in zip(omegas_5000, v_climbs_5000):
-    this_CT, this_CP = get_performance(omega, chord_18e, twist_18e, v_climb)
-    CT_5000rpm.append(this_CT)
-    CP_5000rpm.append(this_CP)
-CT_5000rpm = np.array(CT_5000rpm)
-CP_5000rpm = np.array(CP_5000rpm)
-
-omega_2000 = 2013. * 2*np.pi/60
-n_2000 = 2013. / 60
-v_climbs_2000 = np.array([j*n_2000*2*radius for j in J_2013rpm])
-Re75_2000 = omega_2000*r75*radius*chord75/kine_visc
-CT_2000rpm = []
-CP_2000rpm = []
-for v_climb in v_climbs_2000:
-    this_CT, this_CP = get_performance(omega_2000, chord_18e, twist_18e, v_climb)
-    CT_2000rpm.append(this_CT)
-    CP_2000rpm.append(this_CP)
-CT_2000rpm = np.array(CT_2000rpm)
-CP_2000rpm = np.array(CP_2000rpm)
-
-omega_3000 = 3030. * 2*np.pi/60
-n_3000 = 3030. / 60
-v_climbs_3000 = np.array([j*n_3000*2*radius for j in J_3030rpm])
-Re75_3000 = omega_3000*r75*radius*chord75/kine_visc
-print Re75_3000
-CT_3000rpm = []
-CP_3000rpm = []
-for v_climb in v_climbs_3000:
-    this_CT, this_CP = get_performance(omega_3000, chord_18e, twist_18e, v_climb)
-    CT_3000rpm.append(this_CT)
-    CP_3000rpm.append(this_CP)
-CT_3000rpm = np.array(CT_3000rpm)
-CP_3000rpm = np.array(CP_3000rpm)
-
-
-plt.figure(1)
-plt.plot(J_5000rpm, CT_exp_5000rpm, 'ko-', markerfacecolor='white')
-plt.plot(J_5000rpm, CT_5000rpm, 'ko-')
-plt.plot(J_3030rpm, CT_exp_3030rpm, 'kv-', markerfacecolor='white')
-plt.plot(J_3030rpm, CT_3000rpm, 'kv-')
-plt.plot(J_2013rpm, CT_exp_2013rpm, 'ks-', markerfacecolor='white')
-plt.plot(J_2013rpm, CT_2000rpm, 'ks-')
-#plt.ylim([0.0, 0.15])
-plt.xlim([0.0, 1.0])
-plt.xlabel(r'$\mathrm{J}$', fontsize=18)
-plt.ylabel(r'$\mathrm{C}_\mathrm{T}$', fontsize=18)
-plt.grid()
-plt.legend(['UIUC 5000rpm', 'BEMT 5000rpm', 'UIUC 3000rpm', 'BEMT 3000rpm', 'UIUC 2000rpm', 'BEMT 2000rpm'])
-plt.tick_params(axis='both', which='major', labelsize=14)
-plt.tick_params(axis='both', which='minor', labelsize=14)
-
-plt.figure(2)
-plt.plot(J_5000rpm, CP_exp_5000rpm, 'ko-', markerfacecolor='white')
-plt.plot(J_5000rpm, CP_5000rpm, 'ks-', markerfacecolor='white')
-plt.ylim([0.0, 0.10])
-plt.xlim([0.0, 1.0])
-plt.xlabel(r'$\mathrm{J}$', fontsize=18)
-plt.ylabel(r'$\mathrm{C}_\mathrm{P}$', fontsize=18)
-plt.grid()
-plt.legend(['UIUC', 'BEMT'], fontsize=14)
-plt.tick_params(axis='both', which='major', labelsize=14)
-plt.tick_params(axis='both', which='minor', labelsize=14)
-
+fig1 = plt.figure()
+ax1 = fig1.add_subplot(111)
+ax1.plot(rpm_static, CT_exp_static, 'ko-', markerfacecolor='white')
+ax1.plot(rpm_static, CT_static, 'ks-', markerfacecolor='white')
+ax1.plot(rpm_static, CP_exp_static, 'ko-')
+ax1.plot(rpm_static, CP_static, 'ks-')
+ax1.set_xlim([0, 6500])
+ax1.set_ylim([0.0, 0.20])
+ax1.set_xlabel(r'$\Omega\,\mathrm{in}\,\mathrm{RPM}$', fontsize=18)
+ax1.set_ylabel(r'$\mathrm{C}_\mathrm{T},\, \mathrm{ C}_\mathrm{P}$', fontsize=18)
+ax1.grid()
+ax1.legend([r'$\mathrm{C}_\mathrm{T}\,\mathrm{UIUC}$', r'$\mathrm{C}_\mathrm{T}\,\mathrm{BEMT}\,\mathrm{XFOIL}$',
+            r'$\mathrm{C}_\mathrm{P}\,\mathrm{UIUC}$', r'$\mathrm{C}_\mathrm{P}\,\mathrm{BEMT}\,\mathrm{XFOIL}$'], loc=2, fontsize=14)
+ax1.tick_params(axis='both', which='major', labelsize=14)
+ax1.tick_params(axis='both', which='minor', labelsize=14)
+ax2 = ax1.twiny()
+Re6500 = 6500*2*np.pi/60*r75*radius*chord75/kine_visc
+ax2.plot(range(int(round(Re6500)/1000)), np.ones(int(round(Re6500)/1000))*0.2)
+ax2.set_ylim([0.0, 0.2])
+ax2.set_xlabel(r'$\mathrm{Re}_{3/4}\,\mathrm{(10}^\mathrm{3}\mathrm{)}$', fontsize=18)
+ax2.tick_params(axis='both', which='major', labelsize=14)
+ax2.tick_params(axis='both', which='minor', labelsize=14)
 plt.show()
+
+# # Construct the CT vs J and CP vs J for 5000 RPM
+# chord75 = chord_18e[int(round(len(r)*0.75))]*radius
+# r75 = r[int(round(len(r)*0.75))]
+#
+# omegas_5000 = rpm_5000rpm * 2*np.pi/60
+# n_5000 = rpm_5000rpm / 60
+# v_climbs_5000 = np.array([j*n*2*radius for j, n in zip(J_5000rpm, n_5000)])
+# Re75_5000 = 5000.*2*np.pi/60**r75*radius*chord75/kine_visc
+#
+# CT_5000rpm = []
+# CP_5000rpm = []
+# for omega, v_climb in zip(omegas_5000, v_climbs_5000):
+#     this_CT, this_CP = get_performance(omega, chord_18e, twist_18e, v_climb)
+#     CT_5000rpm.append(this_CT)
+#     CP_5000rpm.append(this_CP)
+# CT_5000rpm = np.array(CT_5000rpm)
+# CP_5000rpm = np.array(CP_5000rpm)
+#
+# omega_2000 = 2013. * 2*np.pi/60
+# n_2000 = 2013. / 60
+# v_climbs_2000 = np.array([j*n_2000*2*radius for j in J_2013rpm])
+# Re75_2000 = omega_2000*r75*radius*chord75/kine_visc
+# CT_2000rpm = []
+# CP_2000rpm = []
+# for v_climb in v_climbs_2000:
+#     this_CT, this_CP = get_performance(omega_2000, chord_18e, twist_18e, v_climb)
+#     CT_2000rpm.append(this_CT)
+#     CP_2000rpm.append(this_CP)
+# CT_2000rpm = np.array(CT_2000rpm)
+# CP_2000rpm = np.array(CP_2000rpm)
+#
+# Go
+# CT_2000rpm = CT_2000rpm[CT_2000rpm > 0]
+# CP_2000rpm = CP_2000rpm[CP_2000rpm > 0]
+#
+# omega_3000 = 3030. * 2*np.pi/60
+# n_3000 = 3030. / 60
+# v_climbs_3000 = np.array([j*n_3000*2*radius for j in J_3030rpm])
+# Re75_3000 = omega_3000*r75*radius*chord75/kine_visc
+# print Re75_3000
+# CT_3000rpm = []
+# CP_3000rpm = []
+# for v_climb in v_climbs_3000:
+#     this_CT, this_CP = get_performance(omega_3000, chord_18e, twist_18e, v_climb)
+#     CT_3000rpm.append(this_CT)
+#     CP_3000rpm.append(this_CP)
+# CT_3000rpm = np.array(CT_3000rpm)
+# CP_3000rpm = np.array(CP_3000rpm)
+#
+#
+# plt.figure(1)
+# plt.plot(J_5000rpm, CT_exp_5000rpm, 'ko-', markerfacecolor='white')
+# plt.plot(J_5000rpm, CT_5000rpm, 'ko-')
+# plt.plot(J_3030rpm, CT_exp_3030rpm, 'kv-', markerfacecolor='white')
+# plt.plot(J_3030rpm, CT_3000rpm, 'kv-')
+# plt.plot(J_2013rpm, CT_exp_2013rpm, 'ks-', markerfacecolor='white')
+# plt.plot(J_2013rpm, CT_2000rpm, 'ks-')
+# #plt.ylim([0.0, 0.15])
+# plt.xlim([0.0, 1.0])
+# plt.xlabel(r'$\mathrm{J}$', fontsize=18)
+# plt.ylabel(r'$\mathrm{C}_\mathrm{T}$', fontsize=18)
+# plt.grid()
+# plt.legend(['UIUC 5000rpm', 'BEMT 5000rpm', 'UIUC 3000rpm', 'BEMT 3000rpm', 'UIUC 2000rpm', 'BEMT 2000rpm'],
+#            loc='lower left')
+# plt.tick_params(axis='both', which='major', labelsize=14)
+# plt.tick_params(axis='both', which='minor', labelsize=14)
+#
+# plt.figure(2)
+# plt.plot(J_5000rpm, CP_exp_5000rpm, 'ko-', markerfacecolor='white')
+# plt.plot(J_5000rpm, CP_5000rpm, 'ko-')
+# plt.plot(J_3030rpm, CT_exp_3030rpm, 'kv-', markerfacecolor='white')
+# plt.plot(J_3030rpm, CT_3000rpm, 'kv-')
+# plt.plot(J_2013rpm, CT_exp_2013rpm, 'ks-', markerfacecolor='white')
+# plt.plot(J_2013rpm, CT_2000rpm, 'ks-')
+# #plt.ylim([0.0, 0.10])
+# plt.xlim([0.0, 1.0])
+# plt.xlabel(r'$\mathrm{J}$', fontsize=18)
+# plt.ylabel(r'$\mathrm{C}_\mathrm{P}$', fontsize=18)
+# plt.grid()
+# plt.legend(['UIUC 5000rpm', 'BEMT 5000rpm', 'UIUC 3000rpm', 'BEMT 3000rpm', 'UIUC 2000rpm', 'BEMT 2000rpm'])
+# plt.tick_params(axis='both', which='major', labelsize=14)
+# plt.tick_params(axis='both', which='minor', labelsize=14)
+#
+# plt.show()
 
 
 

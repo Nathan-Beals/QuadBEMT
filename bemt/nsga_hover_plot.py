@@ -123,8 +123,10 @@ def main():
     opt6 = (omega, chord, twist, 'SLSQP of '+opt4[3])
 
     # (OPT # 7 SLSQP optimization of OPT # 5
-    chord = [0.08527585, 0.18305299, 0.28003252, 0.37723067, 0.39788281, 0.38547729, 0.30086853, 0.20177347, 0.14681765, 0.06462935]
-    twist = [0.00114194, 0.16927492, 0.33062551, 0.36773377, 0.32782983, 0.30753222, 0.27097839, 0.24371668, 0.21400531, 0.10102211]
+    chord = np.array([0.08527585, 0.18305299, 0.28003252, 0.37723067, 0.39788281, 0.38547729, 0.30086853, 0.20177347,
+                      0.14681765, 0.06462935])
+    twist = np.array([0.00114194, 0.16927492, 0.33062551, 0.36773377, 0.32782983, 0.30753222, 0.27097839, 0.24371668,
+                      0.21400531, 0.10102211])
     omega = 2600.92449624 * 2*np.pi/60
     opt7 = (omega, chord, twist, 'SLSQP of '+opt5[3])
 
@@ -149,13 +151,13 @@ def main():
                       0.18162215, 0.10694134])
     twist = np.array([0.60635079, 0.43899644, 0.40277763, 0.34947613, 0.32675009, 0.29279386, 0.27404534, 0.25758374,
                       0.21384189, 0.03945741])
-    omega = 5488.38927605
+    omega = 5488.38927605 * 2*np.pi/60
     opt10 = (omega, chord, twist, 'SLSQP of '+opt8[3])
 
     # OPT # 11 SLSQP optimization of OPT # 9
     chord = np.array([0.10639693, 0.20386555, 0.26456196, 0.26621299, 0.23369806, 0.26408675, 0.21013131, 0.1687175, 0.10552476, 0.00674878])
     twist = np.array([0.32810083, 0.3527571, 0.33500691, 0.31100313, 0.25881002, 0.2835209, 0.25685164, 0.23318679, 0.18140129, 0.04924958])
-    omega = 6504.83447976
+    omega = 6504.83447976 * 2*np.pi/60
     opt11 = (omega, chord, twist, 'SLSQP of '+opt9[3])
 
     # OPT # 12 NSGA 10pt 5000p 500g Reallowed=All T=4.61 xinit=base tiploss c/Rmax=0.3
@@ -190,7 +192,55 @@ def main():
     omega = 5615.24908926 * 2*np.pi/60
     opt15 = (omega, chord, twist, 'NSGA_10pt_5000p_500g_T=4.61_c/Rmax=0.4')
 
-    cases2run = (opt9, opt12)
+    # OPT # 16 NSGA 10 pt 5000p 500g Reallowed=All T=5.5 alt=4000 tiploss c/Rmax=0.3
+    chord = np.array([8.92386048e-02, 1.73000845e-01, 2.70523039e-01, 2.71542807e-01, 2.78749355e-01, 2.36866151e-01,
+                      2.04103526e-01, 1.37456074e-01, 8.68094589e-02, 1.05601135e-04])
+    twist = np.array([0.00161645, 0.15105685, 0.28791442, 0.31577392, 0.28644651, 0.27418749, 0.24854514, 0.21812646,
+                      0.19802027, 0.14972058])
+    omega = 3184.41320387 * 2*np.pi/60
+    opt16 = (omega, chord, twist, 'Carrol w c/Rmax=0.3')
+
+    # OPT # 17 NSGA 10 pt 5000p 500g Reallowed=All T=5.5 alt=4000 tiploss c/Rmax=0.2
+    chord = np.array([0.0518402, 0.100106, 0.19271316, 0.19690797, 0.18563632, 0.17909439, 0.14834613, 0.13261967,
+                      0.10188759, 0.00190945])
+    twist = np.array([0.00116852, 0.16823478, 0.31311048, 0.27888512, 0.25888298, 0.24650332, 0.22996178, 0.22292014,
+                      0.17389608, 0.02976441])
+    omega = 3542.74531607 * 2*np.pi/60
+    opt17 = (omega, chord, twist, 'Carroll w c/Rmax=0.2')
+
+    # OPT # 18 SLSQP optimization of OPT # 15
+    chord = np.array([0.1198, 0.2198, 0.3198, 0.39998273, 0.36354119, 0.31198366, 0.25089796, 0.19514172, 0.13489857,
+                      0.10450839])
+    twist = np.array([0.60193722, 0.43850153, 0.41493225, 0.35232941, 0.32482648, 0.29761368, 0.27135973, 0.24905772,
+                      0.2040977, 0.02962213])
+    omega = 5615.17802792 * 2*np.pi/60
+    opt18 = (omega, chord, twist, 'SLSQP of '+opt15[3])
+
+    # OPT # 19 SLSQP optimization of OPT # 14
+    chord = np.array([0.11979995, 0.18609334, 0.19681079, 0.19770371, 0.19843832, 0.19814065, 0.19409736, 0.15772375,
+                      0.09672598, 0.00023612])
+    twist = np.array([0.55991373, 0.41820809, 0.36433488, 0.3015608, 0.26968276, 0.2302029, 0.25095793, 0.23438399,
+                      0.17403859, 0.01622641])
+    omega = 6960.70746602 * 2*np.pi/60
+    opt19 = (omega, chord, twist, 'SLSQP of '+opt14[3])
+
+    # OPT # 20 SLSQP optimization of OPT # 16
+    chord = np.array([9.00000025e-02, 1.89999642e-01, 2.89999645e-01, 2.99999093e-01, 2.44846538e-01, 2.00366933e-01,
+                      1.64549740e-01, 1.36163105e-01, 9.28467808e-02, 2.29006079e-08])
+    twist = np.array([0.5745666, 0.40003502, 0.34104694, 0.3222615, 0.28755732, 0.26060618, 0.23983699, 0.22522367,
+                      0.19440473, 0.13845183])
+    omega = 3183.71953258 * 2*np.pi/60
+    opt20 = (omega, chord, twist, 'SLSQP of '+opt16[3])
+
+    # OPT # 21 SLSQP optimization of OPT # 17
+    chord = np.array([0.05189348, 0.10199043, 0.19297108, 0.1938842, 0.17973795, 0.1731011, 0.14317486, 0.12792554,
+                      0.09828124, 0.00184187])
+    twist = np.array([0.03350517, 0.19980878, 0.33337885, 0.29418723, 0.26880152, 0.25118232, 0.230463, 0.2182604,
+                      0.1766044, 0.03184142])
+    omega = 3542.73176324 * 2*np.pi/60
+    opt21 = (omega, chord, twist, 'SLSQP of '+opt17[3])
+
+    cases2run = (opt3, opt18, opt13, opt19, base)
 
     def get_performance(o, c, t):
         chord_meters = c * radius
@@ -210,30 +260,98 @@ def main():
         print "Cl/Cd = " + str(p[3]/p[2])
         print "Re = " + str(p[-3])
         print "CT = " + str(p[-2])
-        print "CP = " + str(p[-1])
-        print "FM = " + str(p[-2]**(3./2)/np.sqrt(2)/p[-1])
+        print "Pprofile = " + str(p[-2])
+        print "Pinduced = " + str(p[-1])
+        print r
         print "\n"
 
     perf = [get_performance(case[0], case[1], case[2]) for case in cases2run]
     for i in xrange(len(cases2run)):
         print_performance(cases2run[i], perf[i])
 
-    plt.figure(1)
-    l = []
-    for i, case in enumerate(cases2run):
-        plt.plot(r, case[1])
-        l.append("Case " + str(i+1))
-    plt.xlabel("radial station, r")
-    plt.ylabel("chord")
-    plt.legend(l)
+    l_case1 = [r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.6}$',
+               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.4}$',
+               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
+               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.2}$',
+               r'$\mathrm{DA4002}$']
 
-    plt.figure(2)
-    for i, case in enumerate(cases2run):
-        plt.plot(r, case[2]*360/2/np.pi)
-        l.append("Case " + str(i+1))
-    plt.xlabel("radial station, r")
-    plt.ylabel("twist, degrees")
-    plt.legend(l)
+    l_case2 = [r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.6}$',
+               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.4}$',
+               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
+               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.2}$']
+
+    # plt.figure(1)
+    # l = []
+    # for i, case in enumerate(cases2run):
+    #     plt.plot(r, case[1])
+    #     l.append("Case " + str(i+1))
+    # plt.xlabel("radial station, r", fontsize=18)
+    # plt.ylabel(r'$\mathrm{c/R}$', fontsize=18)
+    # plt.legend(l)
+    # plt.tick_params(axis='both', which='major', labelsize=14)
+    # plt.tick_params(axis='both', which='minor', labelsize=14)
+    #
+    # plt.figure(2)
+    # for i, case in enumerate(cases2run):
+    #     plt.plot(r, case[2]*360/2/np.pi)
+    #     l.append("Case " + str(i+1))
+    # plt.xlabel("radial station, r", fontsize=18)
+    # plt.ylabel(r'$\beta,\,\mathrm{degrees}$', fontsize=18)
+    # plt.legend(l)
+    # plt.tick_params(axis='both', which='major', labelsize=14)
+    # plt.tick_params(axis='both', which='minor', labelsize=14)
+
+    plt.figure(3)
+    plt.plot(r, opt3[1], 'k*-', markerfacecolor='white')
+    plt.plot(r, opt18[1], 'kv-', markerfacecolor='white')
+    plt.plot(r, opt13[1], 'ks-', markerfacecolor='white')
+    plt.plot(r, opt19[1], 'ko-', markerfacecolor='white')
+    plt.plot(r, base[1], 'kD-', markerfacecolor='white')
+    plt.xlabel("radial station, r", fontsize=18)
+    plt.ylabel(r'$\mathrm{c/R}$', fontsize=18)
+    plt.legend(l_case1)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tick_params(axis='both', which='minor', labelsize=14)
+    plt.ylim([0.0, 0.5])
+    plt.grid()
+
+    plt.figure(4)
+    plt.plot(r, opt3[2]*360/2/np.pi, 'k*-', markerfacecolor='white')
+    plt.plot(r, opt18[2]*360/2/np.pi, 'kv-', markerfacecolor='white')
+    plt.plot(r, opt13[2]*360/2/np.pi, 'ks-', markerfacecolor='white')
+    plt.plot(r, opt19[2]*360/2/np.pi, 'ko-', markerfacecolor='white')
+    plt.plot(r, base[2]*360/2/np.pi, 'kD-', markerfacecolor='white')
+    plt.xlabel("radial station, r", fontsize=18)
+    plt.ylabel(r'$\beta,\,\mathrm{deg}$', fontsize=18)
+    plt.legend(l_case1)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tick_params(axis='both', which='minor', labelsize=14)
+    plt.grid()
+
+    plt.figure(5)
+    plt.plot(r, opt6[1], 'k*-', markerfacecolor='white')
+    plt.plot(r, opt7[1], 'kv-', markerfacecolor='white')
+    plt.plot(r, opt16[1], 'ks-', markerfacecolor='white')
+    plt.plot(r, opt21[1], 'ko-', markerfacecolor='white')
+    plt.xlabel("radial station, r", fontsize=18)
+    plt.ylabel(r'$\mathrm{c/R}$', fontsize=18)
+    plt.legend(l_case2)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tick_params(axis='both', which='minor', labelsize=14)
+    plt.ylim([0.0, 0.5])
+    plt.grid()
+
+    plt.figure(6)
+    plt.plot(r, opt6[2]*360/2/np.pi, 'k*-', markerfacecolor='white')
+    plt.plot(r, opt7[2]*360/2/np.pi, 'kv-', markerfacecolor='white')
+    plt.plot(r, opt16[2]*360/2/np.pi, 'ks-', markerfacecolor='white')
+    plt.plot(r, opt21[2]*360/2/np.pi, 'ko-', markerfacecolor='white')
+    plt.xlabel("radial station, r", fontsize=18)
+    plt.ylabel(r'$\beta,\,\mathrm{deg}$', fontsize=18)
+    plt.legend(l_case2)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tick_params(axis='both', which='minor', labelsize=14)
+    plt.grid()
 
     plt.show()
 

@@ -215,9 +215,14 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
     dQ = n_blades * dFx * y
     dP = n_blades * dFx * omega * y
 
+    dPp = n_blades * dD*np.cos(rel_inflow_angle) * omega * y
+    dPo = n_blades * dL*np.sin(rel_inflow_angle) * omega * y
+
     T = sum(dT)
     Q = sum(dQ)
     P = sum(dP)
+    Pp = sum(dPp)
+    Po = sum(dPo)
 
     CT = T / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**2)
     CP = P / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
@@ -229,7 +234,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
 
     if output == 'short':
         return dT, P, FM
-    return dT, dP, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re, prop_CT, prop_CP
+    return dT, dP, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re, prop_CT, prop_CP, Pp, Po
 
 
 
