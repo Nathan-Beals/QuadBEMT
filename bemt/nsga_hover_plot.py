@@ -33,7 +33,8 @@ def main():
     y = root_cutout + dy*np.arange(1, n_elements+1)
     r = y/radius
     pitch = 0.0
-    allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
+    #allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
+    allowable_Re = []
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
     tip_loss = True
     mach_corr = False
@@ -240,7 +241,8 @@ def main():
     omega = 3542.73176324 * 2*np.pi/60
     opt21 = (omega, chord, twist, 'SLSQP of '+opt17[3])
 
-    cases2run = (opt3, opt18, opt13, opt19, base)
+    cases2run = (base,)
+    #cases2run = (opt6, opt7, opt16, opt21)
 
     def get_performance(o, c, t):
         chord_meters = c * radius
@@ -254,106 +256,129 @@ def main():
         print "Case: " + c[3]
         print "Thrust = " + str(sum(p[0]))
         print "Power = " + str(sum(p[1]))
+        print "omega = " + str(c[0] * 60/2/np.pi)
         print "dP = " + str(p[1])
         print "Cd = " + str(p[2])
         print "Cl = " + str(p[3])
         print "Cl/Cd = " + str(p[3]/p[2])
-        print "Re = " + str(p[-3])
+        print "Re = " + str(p[-5])
         print "CT = " + str(p[-2])
         print "Pprofile = " + str(p[-2])
         print "Pinduced = " + str(p[-1])
+        print "dT = " + str(p[0])
         print r
         print "\n"
 
-    perf = [get_performance(case[0], case[1], case[2]) for case in cases2run]
+    perf = []
+    for i in xrange(1000):
+        perf = [get_performance(case[0], case[1], case[2]) for case in cases2run]
     for i in xrange(len(cases2run)):
         print_performance(cases2run[i], perf[i])
 
-    l_case1 = [r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.6}$',
-               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.4}$',
-               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
-               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.2}$',
-               r'$\mathrm{DA4002}$']
-
-    l_case2 = [r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.6}$',
-               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.4}$',
-               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
-               r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.2}$']
+    # l_case1 = [r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.6}$',
+    #            r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.4}$',
+    #            r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
+    #            r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.2}$',
+    #            r'$\mathrm{DA4002}$']
+    #
+    # l_case2 = [r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.6}$',
+    #            r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.4}$',
+    #            r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
+    #            r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.2}$',
+    #            r'$\mathrm{Carroll}$']
+    #
+    # l_case2_nocarroll = [r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.6}$',
+    #                      r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.4}$',
+    #                      r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
+    #                      r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.2}$']
+    #
+    # color_str = ['k*-', 'kv-', 'ks-', 'ko-', 'kD-']
 
     # plt.figure(1)
     # l = []
     # for i, case in enumerate(cases2run):
-    #     plt.plot(r, case[1])
-    #     l.append("Case " + str(i+1))
+    #     plt.plot(r, perf[i][-1]/1000., color_str[i], markerfacecolor='white')
+    #     l.append(l_case2_nocarroll[i])
+    # plt.xlabel("radial station, r", fontsize=18)
+    # plt.ylabel(r'$\mathrm{Re}\,\mathrm{(10}^\mathrm{3}\mathrm{)}$', fontsize=18)
+    # plt.legend(l, loc='upper left')
+    # plt.tick_params(axis='both', which='major', labelsize=14)
+    # plt.tick_params(axis='both', which='minor', labelsize=14)
+    # plt.xlim([0.0, 1.0])
+    # #
+    # # plt.figure(2)
+    # # for i, case in enumerate(cases2run):
+    # #     plt.plot(r, case[2]*360/2/np.pi)
+    # #     l.append("Case " + str(i+1))
+    # # plt.xlabel("radial station, r", fontsize=18)
+    # # plt.ylabel(r'$\beta,\,\mathrm{degrees}$', fontsize=18)
+    # # plt.legend(l)
+    # # plt.tick_params(axis='both', which='major', labelsize=14)
+    # # plt.tick_params(axis='both', which='minor', labelsize=14)
+    #
+    # plt.figure(3)
+    # plt.plot(r, opt3[1], 'k*-', markerfacecolor='white')
+    # plt.plot(r, opt18[1], 'kv-', markerfacecolor='white')
+    # plt.plot(r, opt13[1], 'ks-', markerfacecolor='white')
+    # plt.plot(r, opt19[1], 'ko-', markerfacecolor='white')
+    # plt.plot(r, base[1], 'kD-', markerfacecolor='white')
     # plt.xlabel("radial station, r", fontsize=18)
     # plt.ylabel(r'$\mathrm{c/R}$', fontsize=18)
-    # plt.legend(l)
+    # plt.legend(l_case1, loc='upper left')
     # plt.tick_params(axis='both', which='major', labelsize=14)
     # plt.tick_params(axis='both', which='minor', labelsize=14)
+    # plt.ylim([0.0, 0.5])
+    # plt.xlim([0.0, 1.0])
+    # plt.grid()
     #
-    # plt.figure(2)
-    # for i, case in enumerate(cases2run):
-    #     plt.plot(r, case[2]*360/2/np.pi)
-    #     l.append("Case " + str(i+1))
+    # plt.figure(4)
+    # plt.plot(r, opt3[2]*360/2/np.pi, 'k*-', markerfacecolor='white')
+    # plt.plot(r, opt18[2]*360/2/np.pi, 'kv-', markerfacecolor='white')
+    # plt.plot(r, opt13[2]*360/2/np.pi, 'ks-', markerfacecolor='white')
+    # plt.plot(r, opt19[2]*360/2/np.pi, 'ko-', markerfacecolor='white')
+    # plt.plot(r, base[2]*360/2/np.pi, 'kD-', markerfacecolor='white')
     # plt.xlabel("radial station, r", fontsize=18)
-    # plt.ylabel(r'$\beta,\,\mathrm{degrees}$', fontsize=18)
-    # plt.legend(l)
+    # plt.ylabel("twist, deg", fontsize=18)
+    # plt.legend(l_case1)
     # plt.tick_params(axis='both', which='major', labelsize=14)
     # plt.tick_params(axis='both', which='minor', labelsize=14)
-
-    plt.figure(3)
-    plt.plot(r, opt3[1], 'k*-', markerfacecolor='white')
-    plt.plot(r, opt18[1], 'kv-', markerfacecolor='white')
-    plt.plot(r, opt13[1], 'ks-', markerfacecolor='white')
-    plt.plot(r, opt19[1], 'ko-', markerfacecolor='white')
-    plt.plot(r, base[1], 'kD-', markerfacecolor='white')
-    plt.xlabel("radial station, r", fontsize=18)
-    plt.ylabel(r'$\mathrm{c/R}$', fontsize=18)
-    plt.legend(l_case1)
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    plt.tick_params(axis='both', which='minor', labelsize=14)
-    plt.ylim([0.0, 0.5])
-    plt.grid()
-
-    plt.figure(4)
-    plt.plot(r, opt3[2]*360/2/np.pi, 'k*-', markerfacecolor='white')
-    plt.plot(r, opt18[2]*360/2/np.pi, 'kv-', markerfacecolor='white')
-    plt.plot(r, opt13[2]*360/2/np.pi, 'ks-', markerfacecolor='white')
-    plt.plot(r, opt19[2]*360/2/np.pi, 'ko-', markerfacecolor='white')
-    plt.plot(r, base[2]*360/2/np.pi, 'kD-', markerfacecolor='white')
-    plt.xlabel("radial station, r", fontsize=18)
-    plt.ylabel(r'$\beta,\,\mathrm{deg}$', fontsize=18)
-    plt.legend(l_case1)
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    plt.tick_params(axis='both', which='minor', labelsize=14)
-    plt.grid()
-
-    plt.figure(5)
-    plt.plot(r, opt6[1], 'k*-', markerfacecolor='white')
-    plt.plot(r, opt7[1], 'kv-', markerfacecolor='white')
-    plt.plot(r, opt16[1], 'ks-', markerfacecolor='white')
-    plt.plot(r, opt21[1], 'ko-', markerfacecolor='white')
-    plt.xlabel("radial station, r", fontsize=18)
-    plt.ylabel(r'$\mathrm{c/R}$', fontsize=18)
-    plt.legend(l_case2)
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    plt.tick_params(axis='both', which='minor', labelsize=14)
-    plt.ylim([0.0, 0.5])
-    plt.grid()
-
-    plt.figure(6)
-    plt.plot(r, opt6[2]*360/2/np.pi, 'k*-', markerfacecolor='white')
-    plt.plot(r, opt7[2]*360/2/np.pi, 'kv-', markerfacecolor='white')
-    plt.plot(r, opt16[2]*360/2/np.pi, 'ks-', markerfacecolor='white')
-    plt.plot(r, opt21[2]*360/2/np.pi, 'ko-', markerfacecolor='white')
-    plt.xlabel("radial station, r", fontsize=18)
-    plt.ylabel(r'$\beta,\,\mathrm{deg}$', fontsize=18)
-    plt.legend(l_case2)
-    plt.tick_params(axis='both', which='major', labelsize=14)
-    plt.tick_params(axis='both', which='minor', labelsize=14)
-    plt.grid()
-
-    plt.show()
+    # plt.xlim([0.0, 1.0])
+    # plt.grid()
+    #
+    # carroll_chord = [0.07, 0.12, 0.13, 0.14, 0.2, 0.185, 0.16, 0.141, 0.099, 0.06]
+    # carroll_twist = [0.0, 17., 22., 16.8, 11.5, 10., 9.5, 9., 8, 1.5]
+    # carroll_r = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    #
+    # plt.figure(5)
+    # plt.plot(r, opt6[1], 'k*-', markerfacecolor='white')
+    # plt.plot(r, opt7[1], 'kv-', markerfacecolor='white')
+    # plt.plot(r, opt16[1], 'ks-', markerfacecolor='white')
+    # plt.plot(r, opt21[1], 'ko-', markerfacecolor='white')
+    # plt.plot(carroll_r, carroll_chord, 'k^-', markerfacecolor='white')
+    # plt.xlabel("radial station, r", fontsize=18)
+    # plt.ylabel(r'$\mathrm{c/R}$', fontsize=18)
+    # plt.legend(l_case2, loc='upper left')
+    # plt.tick_params(axis='both', which='major', labelsize=14)
+    # plt.tick_params(axis='both', which='minor', labelsize=14)
+    # plt.ylim([0.0, 0.5])
+    # plt.xlim([0.0, 1.0])
+    # plt.grid()
+    #
+    # plt.figure(6)
+    # plt.plot(r, opt6[2]*360/2/np.pi, 'k*-', markerfacecolor='white')
+    # plt.plot(r, opt7[2]*360/2/np.pi, 'kv-', markerfacecolor='white')
+    # plt.plot(r, opt16[2]*360/2/np.pi, 'ks-', markerfacecolor='white')
+    # plt.plot(r, opt21[2]*360/2/np.pi, 'ko-', markerfacecolor='white')
+    # plt.plot(carroll_r, carroll_twist, 'k^-', markerfacecolor='white')
+    # plt.xlabel("radial station, r", fontsize=18)
+    # plt.ylabel("twist, deg", fontsize=18)
+    # plt.legend(l_case2, loc='upper right')
+    # plt.tick_params(axis='both', which='major', labelsize=14)
+    # plt.tick_params(axis='both', which='minor', labelsize=14)
+    # plt.xlim([0.0, 1.0])
+    # plt.grid()
+    #
+    # plt.show()
 
 if __name__ == '__main__':
     main()

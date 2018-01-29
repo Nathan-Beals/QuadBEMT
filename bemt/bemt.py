@@ -115,7 +115,7 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, T_req, v_inf, n_azi_elem
     CP = CQ
     P = CP * dens * np.pi * blade_rad * (omega*blade_rad)**3
 
-    return T, CT, H, CH, L_observer, D_observer, P, CP
+    return T, H, P
 
 
 def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={}, v_climb=0, alt=0, tip_loss=True, mach_corr=True, output='short'):
@@ -183,6 +183,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
 
     # Calculate Reynolds number along the span of the blade
     Re = u_resultant * chord / kine_visc
+    Re_actual = np.array(Re)
     if allowable_Re:
         Re = np.array([min(allowable_Re, key=lambda x: abs(x-rn)) for rn in Re])
 
@@ -234,7 +235,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
 
     if output == 'short':
         return dT, P, FM
-    return dT, dP, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re, prop_CT, prop_CP, Pp, Po
+    return dT, dP, Cd, Cl, u_resultant, chord, dL, local_inflow, rel_inflow_angle, eff_aoa, dFx, dFz, Re, prop_CT, prop_CP, Pp, Po, Re_actual
 
 
 
