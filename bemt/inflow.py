@@ -6,7 +6,7 @@ def uniform_ff(CT_target, alpha, mu, n_elements):
     converged = False
     while not converged:
         inflow_old = inflow
-        f = inflow - mu*np.tan(alpha) - CT_target/(2*np.sqrt(mu**2+inflow))
+        f = inflow - mu*np.tan(alpha) - CT_target/(2*np.sqrt(mu**2+inflow**2))
         f_prime = 1 + CT_target/2*(mu**2+inflow**2)**(-float(3)/2)*inflow
         inflow -= f/f_prime
         converged = abs((inflow - inflow_old)/inflow) < 0.0005

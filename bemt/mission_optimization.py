@@ -1,6 +1,8 @@
 import unit_conversion
 import propeller
+import quadrotor
 import bemt
+import trim
 from pyOpt import Optimization
 from pyOpt import NSGA2
 from pyOpt import SLSQP
@@ -30,7 +32,7 @@ def objfun(xn, **kwargs):
     n_blades = kwargs['n_blades']
     airfoils = kwargs['airfoils']
     pitch = kwargs['pitch']
-    target_thrust = kwargs['thrust']
+    vehicle_weight = kwargs['vehicle_weight']
     cval_max = kwargs['max_chord']
     tip_loss = kwargs['tip_loss']
     mach_corr = kwargs['mach_corr']
@@ -41,7 +43,11 @@ def objfun(xn, **kwargs):
     allowable_Re = kwargs['allowable_Re']
     opt_method = kwargs['opt_method']
     alt = kwargs['alt']
-    omega = xn[0]
+    v_inf = kwargs['v_inf']
+    alpha0 = kwargs['alpha0']
+    n_azi_elements = kwargs['n_azi_elements']
+    omega_h = xn[0]
+    mission_time = kwargs['mission_time']
     twist0 = xn[1]
     chord0 = xn[2]*radius
     dtwist = np.array(xn[3:len(r)+2])
@@ -66,19 +72,43 @@ def objfun(xn, **kwargs):
     prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy, airfoils=airfoils, Cl_tables=Cl_tables,
                                Cd_tables=Cd_tables)
 
+    quad = quadrotor.Quadrotor(prop, vehicle_weight)
+
+
     try:
-        dT, P, FM = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+        dT_h, P_h = bemt.bemt_axial(prop, pitch, omega_h, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                     tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
-    except (FloatingPointError, IndexError):
+    except FloatingPointError:
+        print "Floating point error in axial BEMT"
+        fail = 1
+        return f, g, fail
+    except IndexError:
+        print "Index error in axial BEMT"
         fail = 1
         return f, g, fail
 
-    f = P
+    try:
+        trim0 = [alpha0, omega_h]   # Use alpha0 (supplied by user) and the hover omega as initial guesses for trim
+        ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements, 'allowable_Re': allowable_Re,
+                     'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt}
+        alpha_trim, omega_trim = trim.trim(quad, v_inf, trim0, ff_kwargs)
+
+        dT_trim, P_trim = bemt.bemt_forward_flight(prop, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
+                                                   tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                                   Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+    except Exception as e:
+        print "{} error in ff trim".format(type(e).__name__)
+        raise
+
+    # Find total energy mission_times = [time_in_hover, time_in_ff] in seconds
+    energy = P_h * mission_time[0] + P_trim * mission_time[1]
+
+    f = energy
     print f
-    print "Thrust = %s" % str(sum(dT))
+    print "Thrust hover = %s" % str(sum(dT_h))
 
     # Evaluate thrust constraint. Target thrust must be less than computed thrust
-    g[0] = target_thrust - sum(dT)
+    g[0] = vehicle_weight/4 - sum(dT_h)
 
     return f, g, fail
 
@@ -118,7 +148,6 @@ def main():
     n_blades = 2
     n_elements = 10
     radius = unit_conversion.in2m(9.0)/2
-    #radius = 0.1397
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
     dr = float(1)/n_elements
@@ -128,11 +157,21 @@ def main():
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
     allowable_Re = []
     #allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
-    thrust = 4.61
+    vehicle_weight = 11.5
     max_chord = 0.6
     alt = 0
     tip_loss = True
     mach_corr = False
+
+    # Forward flight parameters
+    v_inf = 8.0     # m/s
+    alpha0 = 6.0 * np.pi / 180  # Starting guess for trimmed alpha in radians
+
+    # Mission times
+    time_in_hover = 5. * 60     # Time in seconds
+    time_in_ff = 10. * 60
+    mission_time = [time_in_hover, time_in_ff]
+
 
     Cl_tables = {}
     Cd_tables = {}
@@ -210,7 +249,7 @@ def main():
     dchord_upper = 0.1
 
     opt_prob = Optimization('Rotor in Hover', objfun)
-    opt_prob.addVar('omega', 'c', value=omega_start, lower=omega_lower, upper=omega_upper)
+    opt_prob.addVar('omega_h', 'c', value=omega_start, lower=omega_lower, upper=omega_upper)
     opt_prob.addVar('twist0', 'c', value=twist0_start, lower=twist0_lower, upper=twist0_upper)
     opt_prob.addVar('chord0', 'c', value=chord0_start, lower=chord0_lower, upper=chord0_upper)
     opt_prob.addVarGroup('dtwist', n_elements-1, 'c', value=dtwist_start, lower=dtwist_lower, upper=dtwist_upper)
@@ -229,10 +268,10 @@ def main():
     nsga2.setOption('pCross_real', 0.85)
     nsga2.setOption('xinit', 1)
     fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout,
-                               radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust,
+                               radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, vehicle_weight=vehicle_weight,
                                max_chord=max_chord, tip_loss=tip_loss, mach_corr=mach_corr, Cl_funs=Cl_funs,
                                Cd_funs=Cd_funs, Cl_tables=Cl_tables, Cd_tables=Cd_tables, allowable_Re=allowable_Re,
-                               opt_method=opt_method, alt=alt)
+                               opt_method=opt_method, alt=alt, v_inf=v_inf, alpha0=alpha0, mission_time=mission_time)
     print opt_prob.solution(0)
 
     # opt_method = 'nograd'
