@@ -20,3 +20,7 @@ def deg2rad(n):
 def in2m(n):
     return n * 0.0254
 
+
+def lb2N(n):
+    return n * 4.44822
+

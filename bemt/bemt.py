@@ -13,7 +13,7 @@ PRESS_SSL = 1.01325 * 10**5    # Standard sea level pressure in N/m**2
 kine_visc = 1.460 * 10**-5  # Kinematic viscosity of air
 
 
-def bemt_forward_flight(propeller, pitch, omega, alpha, v_inf, n_azi_elements, alt=0, tip_loss=True,
+def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, alt=0, tip_loss=True,
                         mach_corr=False, inflow_model='uniform', allowable_Re=[], Cl_funs={}, Cd_funs={}):
 
     alt_geop = (RAD_EARTH*alt)/(RAD_EARTH+alt)
@@ -24,6 +24,7 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, v_inf, n_azi_elements, a
 
     # Define blade geometry parameters. Pitch, chord, and r are all lists of the same length defining the blade
     # geometry at a specific span location r
+    propeller = quadrotor.propeller
     n_blades = propeller.n_blades
     blade_rad = propeller.radius
     twist = np.array(propeller.twist)
@@ -48,16 +49,15 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, v_inf, n_azi_elements, a
     dP = np.empty(n_elements)
     P = 0.0
     T = 0.0
+    H = 0.0
 
     # Now do the forward flight case. Since the velocity components normal and in plane with the TPP are now a
     # function of the blade azimuth angle, psi, we need to average forces over the entire range of psi.
     psi = np.linspace(0, 2*np.pi, n_azi_elements)
     dpsi = 2 * np.pi * y / n_azi_elements   # size of d_psi for each annulus
 
-    converged = False
-    max_iter = 20
-    while not converged and iter < max_iter:
-        CT_guess = T_guess / (dens * np.pi * blade_rad * (omega*blade_rad)**2)
+    def bemt_eval(T_old):
+        CT_guess = T_old / (dens * np.pi * blade_rad * (omega*blade_rad)**2)
         if inflow_model == 'uniform':
             local_inflow = inflow.uniform_ff(CT_guess, alpha, mu, n_elements)
         else:
@@ -66,8 +66,8 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, v_inf, n_azi_elements, a
         dT_mat = np.empty([n_azi_elements, n_elements], dtype=float)
         dH_mat = np.empty([n_azi_elements, n_elements], dtype=float)
         dQ_mat = np.empty([n_azi_elements, n_elements], dtype=float)
-        dL_observer_mat = np.empty([n_azi_elements, n_elements], dtype=float)
-        dD_observer_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+        # dL_observer_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+        # dD_observer_mat = np.empty([n_azi_elements, n_elements], dtype=float)
 
         for i_azi, azi_ang in enumerate(psi):
             u_p = local_inflow * v_tip
@@ -79,13 +79,13 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, v_inf, n_azi_elements, a
 
             # Calculate Reynolds number along the span of the blade
             Re = U * chord / kine_visc
-            Re_actual = np.array(Re)
+            # Re_actual = np.array(Re)
             if allowable_Re:
                 Re = np.array([min(allowable_Re, key=lambda x: abs(x-rn)) for rn in Re])
 
-            # If we are using only a selection of discrete Reynolds numbers for the sake of calculating lift and drag
-            # coefficients, calculate using the linearized Cl functions and polynomial Cd functions found in aero_coeffs
-            # .py.
+            # If we are using only a selection of discrete Reynolds numbers for the sake of calculating lift and
+            # drag coefficients, calculate using the linearized Cl functions and polynomial Cd functions found in
+            # aero_coeffs.py.
             Cl = []
             Cd = []
             if Cl_funs:
@@ -149,13 +149,61 @@ def bemt_forward_flight(propeller, pitch, omega, alpha, v_inf, n_azi_elements, a
         # Q = sum(dQ)
         # CP = P / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
         # CQ = Q / (dens * np.pi * blade_rad**3 * (omega*blade_rad)**2)
+        return T, H, P
 
-        converged = abs((T - T_guess)/T) < 0.005
-        T_guess = T
+    # Initialize thrusts to use in secant method and evaluate using BEMT at those points
+    # thover = sum(bemt_axial(propeller, pitch, omega)[0])
+    # x = [thover*0.8, thover]
+    # print "xinit = " + str(x)
+    # fx = [bemt_eval(x[0])[0], bemt_eval(x[1])[0]]
+    # print "finit = " + str(fx)
+    # max_iter = 20
+    # converged = False
+    # i = 0
+    # while not converged and i < max_iter:
+    #     new_thrust = (x[1]*fx[0] - x[0]*fx[1]) / (fx[0] - fx[1])
+    #     print "New thrust = " + str(new_thrust)
+    #     converged = abs((new_thrust - x[0])/new_thrust) < 0.005
+    #     x = [new_thrust, x[0]]
+    #     if not converged:
+    #         fx = [bemt_eval(new_thrust)[0], fx[0]]
+    #         print "new thrust eval = " + str(fx[0])
+    #     i += 1\
 
-    if not converged:
-        print "ff BEMT did not converge"
-    return dT, P
+    t = sum(bemt_axial(propeller, pitch, omega)[0])
+    bemt_longoutput = []
+    converged = False
+    i = 0
+    max_i = 20
+    while not converged and i < max_i:
+        tp = 1e-8
+        bemt_longoutput = bemt_eval(t)
+        ft = t - bemt_longoutput[0]
+        ftp = (t + tp) - bemt_eval(t + tp)[0]
+        ftprime = (ftp - ft) / tp
+        tnew = t - ft / ftprime
+        converged = abs((tnew - t)/tnew) < 0.0005
+        t = tnew
+        i += 1
+
+    # x = sum(bemt_axial(propeller, pitch, omega)[0])
+    # fx_longoutput = []
+    # converged = False
+    # i = 0
+    # max_i = 20
+    # while not converged and i < max_i:
+    #     try:
+    #         fx_longoutput = bemt_eval(x)
+    #     except Exception as e:
+    #         print "{} in ff trim".format(type(e).__name__)
+    #         raise
+    #     fx = fx_longoutput[0]
+    #     print "old thrust = " + str(x)
+    #     print "fx (new thrust) = " + str(fx)
+    #     converged = abs((fx - x)/fx) < 0.005
+    #     x = fx
+    #     i += 1
+    return bemt_longoutput[0], bemt_longoutput[1], bemt_longoutput[2], converged
 
 
 def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={}, v_climb=0, alt=0, tip_loss=True, mach_corr=True, output='short'):

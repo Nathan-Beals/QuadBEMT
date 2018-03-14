@@ -23,7 +23,7 @@ def counted(f):
 
 @counted
 def objfun(xn, **kwargs):
-
+    print "objfun entered"
     radius = kwargs['radius']
     r = kwargs['r']
     y = kwargs['y']
@@ -33,7 +33,7 @@ def objfun(xn, **kwargs):
     airfoils = kwargs['airfoils']
     pitch = kwargs['pitch']
     vehicle_weight = kwargs['vehicle_weight']
-    cval_max = kwargs['max_chord']
+    max_chord = kwargs['max_chord']
     tip_loss = kwargs['tip_loss']
     mach_corr = kwargs['mach_corr']
     Cl_tables = kwargs['Cl_tables']
@@ -46,8 +46,8 @@ def objfun(xn, **kwargs):
     v_inf = kwargs['v_inf']
     alpha0 = kwargs['alpha0']
     n_azi_elements = kwargs['n_azi_elements']
-    omega_h = xn[0]
     mission_time = kwargs['mission_time']
+    omega_h = xn[0]
     twist0 = xn[1]
     chord0 = xn[2]*radius
     dtwist = np.array(xn[3:len(r)+2])
@@ -63,7 +63,7 @@ def objfun(xn, **kwargs):
     # Calculate geometric constraint values. If a genetic algorithm is used we can fail the case immediately if there
     # are any violations. If a gradient-based algorithm is used this will cause the gradient calculation to fail so the
     # constraints must be checked normally by the optimizer.
-    g[1:] = get_geocons(chord, cval_max, radius)
+    g[1:] = get_geocons(chord, max_chord, radius)
     if opt_method == 'nograd':
         if any(geocon > 0.0 for geocon in g[1:]):
             print "geocons violated"
@@ -74,10 +74,12 @@ def objfun(xn, **kwargs):
 
     quad = quadrotor.Quadrotor(prop, vehicle_weight)
 
+    print "quad created"
 
     try:
         dT_h, P_h = bemt.bemt_axial(prop, pitch, omega_h, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                     tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
+        print "Hover thrust is " + str(sum(dT_h))
     except FloatingPointError:
         print "Floating point error in axial BEMT"
         fail = 1
@@ -91,13 +93,17 @@ def objfun(xn, **kwargs):
         trim0 = [alpha0, omega_h]   # Use alpha0 (supplied by user) and the hover omega as initial guesses for trim
         ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements, 'allowable_Re': allowable_Re,
                      'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt}
-        alpha_trim, omega_trim = trim.trim(quad, v_inf, trim0, ff_kwargs)
+
+        alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+        if not converged:
+            fail = 1
+            return f, g, fail
 
         dT_trim, P_trim = bemt.bemt_forward_flight(prop, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
                                                    tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
                                                    Cl_funs=Cl_funs, Cd_funs=Cd_funs)
     except Exception as e:
-        print "{} error in ff trim".format(type(e).__name__)
+        print "{} in ff trim".format(type(e).__name__)
         raise
 
     # Find total energy mission_times = [time_in_hover, time_in_ff] in seconds
@@ -166,6 +172,7 @@ def main():
     # Forward flight parameters
     v_inf = 8.0     # m/s
     alpha0 = 6.0 * np.pi / 180  # Starting guess for trimmed alpha in radians
+    n_azi_elements = 10
 
     # Mission times
     time_in_hover = 5. * 60     # Time in seconds
@@ -248,7 +255,7 @@ def main():
     dchord_lower = -0.1
     dchord_upper = 0.1
 
-    opt_prob = Optimization('Rotor in Hover', objfun)
+    opt_prob = Optimization('Mission Simulator', objfun)
     opt_prob.addVar('omega_h', 'c', value=omega_start, lower=omega_lower, upper=omega_upper)
     opt_prob.addVar('twist0', 'c', value=twist0_start, lower=twist0_lower, upper=twist0_upper)
     opt_prob.addVar('chord0', 'c', value=chord0_start, lower=chord0_lower, upper=chord0_upper)
@@ -267,11 +274,11 @@ def main():
     nsga2.setOption('maxGen', 10)
     nsga2.setOption('pCross_real', 0.85)
     nsga2.setOption('xinit', 1)
-    fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout,
-                               radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, vehicle_weight=vehicle_weight,
-                               max_chord=max_chord, tip_loss=tip_loss, mach_corr=mach_corr, Cl_funs=Cl_funs,
-                               Cd_funs=Cd_funs, Cl_tables=Cl_tables, Cd_tables=Cd_tables, allowable_Re=allowable_Re,
-                               opt_method=opt_method, alt=alt, v_inf=v_inf, alpha0=alpha0, mission_time=mission_time)
+    fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
+                               airfoils=airfoils, vehicle_weight=vehicle_weight, max_chord=max_chord, tip_loss=tip_loss,
+                               mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables,
+                               Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method, alt=alt,
+                               v_inf=v_inf, alpha0=alpha0, mission_time=mission_time, n_azi_elements=n_azi_elements)
     print opt_prob.solution(0)
 
     # opt_method = 'nograd'
