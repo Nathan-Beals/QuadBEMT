@@ -49,7 +49,7 @@ def objfun(xn, **kwargs):
     mission_time = kwargs['mission_time']
     omega_h = xn[0]
     twist0 = xn[1]
-    chord0 = xn[2]*radius
+    chord0 = xn[2]*radius   # Convert to meters from c/R before we use in calculations
     dtwist = np.array(xn[3:len(r)+2])
     dchord = np.array([x*radius for x in xn[len(r)+2:2*len(r)+2]])
 
@@ -77,6 +77,8 @@ def objfun(xn, **kwargs):
     print "quad created"
 
     try:
+        print "twist = " + str(twist)
+        print "chord = " + str(chord)
         dT_h, P_h = bemt.bemt_axial(prop, pitch, omega_h, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                     tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
         print "Hover thrust is " + str(sum(dT_h))
@@ -99,7 +101,7 @@ def objfun(xn, **kwargs):
             fail = 1
             return f, g, fail
 
-        dT_trim, P_trim = bemt.bemt_forward_flight(prop, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
+        T_trim, H_trim, P_trim, converged = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
                                                    tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
                                                    Cl_funs=Cl_funs, Cd_funs=Cd_funs)
     except Exception as e:
@@ -170,8 +172,8 @@ def main():
     mach_corr = False
 
     # Forward flight parameters
-    v_inf = 8.0     # m/s
-    alpha0 = 6.0 * np.pi / 180  # Starting guess for trimmed alpha in radians
+    v_inf = 2.5     # m/s
+    alpha0 = 6. * np.pi / 180  # Starting guess for trimmed alpha in radians
     n_azi_elements = 10
 
     # Mission times
@@ -205,6 +207,7 @@ def main():
     # Set design variable bounds
     ###########################################
     omega_start = 5943.0 * 2*np.pi/60
+    # These are c/R values for the DA4002 propeller given at the UIUC propeller database
     chord_base = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
                            0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
     chord_base = np.array([chord_base[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
@@ -222,6 +225,7 @@ def main():
     dchord_start = dchord_base
     twist0_start = twist0_base
     chord0_start = chord0_base
+    print "chord0_start = " + str(chord0_start)
 
     # chord = np.array([8.92386048e-02, 1.73000845e-01, 2.70523039e-01, 2.71542807e-01, 2.78749355e-01, 2.36866151e-01,
     #                   2.04103526e-01, 1.37456074e-01, 8.68094589e-02, 1.05601135e-04])

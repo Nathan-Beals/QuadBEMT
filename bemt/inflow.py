@@ -1,17 +1,16 @@
 import numpy as np
 
 
-def uniform_ff(CT_target, alpha, mu, n_elements):
-    print "CT_target = " + str(CT_target)
-    inflow = np.sqrt(CT_target/2)
+def uniform_ff(CT, alpha, mu, n_elements):
+    inflow = np.sqrt(CT/2)
+    print "CT = "
     converged = False
     while not converged:
         inflow_old = inflow
-        f = inflow - mu*np.tan(alpha) - CT_target/(2*np.sqrt(mu**2+inflow**2))
-        f_prime = 1 + CT_target/2*(mu**2+inflow**2)**(-float(3)/2)*inflow
+        f = inflow - mu*np.tan(alpha) - CT/(2*np.sqrt(mu**2+inflow**2))
+        f_prime = 1 + CT/2*(mu**2+inflow**2)**(-float(3)/2)*inflow
         inflow -= f/f_prime
         converged = abs((inflow - inflow_old)/inflow) < 0.0005
-    print "inflow = " + str(inflow)
     return inflow * np.ones(n_elements)
 
 
