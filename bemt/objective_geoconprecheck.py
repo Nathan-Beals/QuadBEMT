@@ -67,7 +67,7 @@ def objfun(xn, **kwargs):
                                Cd_tables=Cd_tables)
 
     try:
-        dT, P, FM = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+        dT, P = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                     tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
     except (FloatingPointError, IndexError):
         fail = 1
@@ -126,8 +126,8 @@ def main():
     r = y/radius
     pitch = 0.0
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
-    allowable_Re = []
-    #allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
+    #allowable_Re = []
+    allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
     thrust = 4.61
     max_chord = 0.6
     alt = 0
@@ -225,7 +225,7 @@ def main():
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
     nsga2.setOption('PopSize', 5000)
-    nsga2.setOption('maxGen', 10)
+    nsga2.setOption('maxGen', 100)
     nsga2.setOption('pCross_real', 0.85)
     nsga2.setOption('xinit', 1)
     fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout,

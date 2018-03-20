@@ -78,3 +78,33 @@ def trim(quadrotor, v_inf, x0, kwargs):
         print "trim did not converge"
     return x[0], x[1], converged
 
+
+def trim_broyden(quadrotor, v_inf, x0, kwargs):
+    e = 0.0005
+    converged = False
+    max_i = 10
+    i = 1
+
+    x_old = np.array(x0)
+    fx_old = np.array(equilibrium(x_old, v_inf, quadrotor, kwargs))[:-1]
+    jac0 = jacobian(equilibrium, x_old, v_inf, quadrotor, fx_old, kwargs)
+    a_inv_old = np.linalg.inv(jac0)
+    dx = -1 * a_inv_old.dot(fx_old)
+    while not converged:
+        if i > max_i:
+            break
+        x = x_old + dx
+        fx = np.array(equilibrium(x, v_inf, quadrotor, kwargs))
+        if not fx[-1]:
+            break
+        fx = fx[:-1]
+        y = fx - fx_old
+        s = x - x_old
+        sT = s[np.newaxis, :].T
+        a_inv = a_inv_old + (1/(sT.dot(a_inv_old).dot(y))) * ((s - a_inv_old.dot(y)).dot(sT).dot(a_inv_old))
+        dx = -1 * a_inv.dot(fx)
+        converged = (x[0] - x_old[0])/x[0] < e and (x[1] - x_old[1])/x[1] < e
+        x_old = x
+        i += 1
+
+    return x_old[0], x_old[1], converged

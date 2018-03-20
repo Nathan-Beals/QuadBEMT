@@ -1,9 +1,11 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import propeller
 import quadrotor
 import aero_coeffs
 import unit_conversion
 import bemt
+import trim
 
 
 def calc_twist_dist(t0, dt_vec):
@@ -32,8 +34,8 @@ y = root_cutout + dy*np.arange(1, n_elements+1)
 r = y/radius
 pitch = 0.0
 airfoils = (('SDA1075_494p', 0.0, 1.0),)
-allowable_Re = []
-#allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
+#allowable_Re = []
+allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
 vehicle_weight = 11.5
 max_chord = 0.6
 alt = 0
@@ -41,7 +43,7 @@ tip_loss = True
 mach_corr = False
 
 # Forward flight parameters
-v_inf = 20.     # m/s
+v_inf = 4     # m/s
 alpha0 = 6. * np.pi / 180  # Starting guess for trimmed alpha in radians
 n_azi_elements = 10
 
@@ -71,11 +73,12 @@ Cd_funs = {}
 if Cl_tables and allowable_Re:
     Cl_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cl_fun(Re, Cl_tables[airfoils[0][0]], Clmax[airfoils[0][0]][Re]) for Re in allowable_Re]))
     Cd_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cd_fun(Re, Cd_tables[airfoils[0][0]]) for Re in allowable_Re]))
+    print "Cl and Cd funs created"
 
 ###########################################
 # Set design variable bounds
 ###########################################
-omega = 5943.0 * 2*np.pi/60
+omega = 4900. * 2*np.pi/60
 chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
                        0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154]) * radius
 chord = np.array([chord[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
@@ -88,18 +91,26 @@ prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy, airfoil
 
 quad = quadrotor.Quadrotor(prop, vehicle_weight)
 
-print "quad created"
 
 dT_h, P_h = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                             tip_loss=True, mach_corr=mach_corr, alt=alt)
-print "axial bemt finished"
-print "hover thrust = " + str(sum(dT_h))
-alpha = 0.
-T_trim, H_trim, P_trim, converged = bemt.bemt_forward_flight(quad, pitch, omega, alpha, v_inf, n_azi_elements, alt=alt, tip_loss=tip_loss,
-                                           mach_corr=mach_corr, allowable_Re=allowable_Re, Cl_funs=Cl_funs,
-                                           Cd_funs=Cd_funs)
 
-print "hover thrust = " + str(sum(dT_h))
-print "hover power = " + str(P_h)
-print "ff thrust = " + str(T_trim)
-print "ff power = " + str(P_trim)
+alpha = 0.
+ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements, 'allowable_Re': allowable_Re,
+             'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt}
+
+T_ff, H_ff, P_ff, _ = bemt.bemt_forward_flight(quad, pitch, omega, alpha, v_inf, n_azi_elements, alt=alt,
+                                               tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                               Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+
+
+print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
+print "FF    (thrust, power) = (%f, %f)" % (T_ff, P_ff)
+alpha = 0.06
+trim0 = [alpha, omega]
+for i in xrange(100):
+    try:
+        alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+    except FloatingPointError:
+        print "Floating point error in trim"
+    print "i = " + str(i)

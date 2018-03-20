@@ -15,5 +15,4 @@ class Quadrotor(object):
         # drag = lb2N((-0.0045*alpha_deg + 0.22)*q)     # Quadrotor frame drag in units of lb converted to Newtons
         # print "frame drag = " + str(drag)
         simple_drag = 0.27 * 0.092903 * q
-        print "Frame drag = " + str(simple_drag)
         return simple_drag

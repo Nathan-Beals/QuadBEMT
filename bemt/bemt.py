@@ -16,8 +16,6 @@ kine_visc = 1.460 * 10**-5  # Kinematic viscosity of air
 def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, alt=0, tip_loss=True,
                         mach_corr=False, inflow_model='uniform', allowable_Re=[], Cl_funs={}, Cd_funs={}):
 
-    print "ff bemt entered"
-
     alt_geop = (RAD_EARTH*alt)/(RAD_EARTH+alt)
     temp = TEMP_SSL - A * alt_geop
     press = PRESS_SSL * (temp/TEMP_SSL)**(-Gs/(A*R))
@@ -41,6 +39,10 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
     airfoil = propeller.airfoils[0][0]
     Cl_table = propeller.Cl_tables[airfoil]
     Cd_table = propeller.Cd_tables[airfoil]
+    allowable_Re = allowable_Re
+    Cl_funs = Cl_funs
+    Cd_funs = Cd_funs
+
 
     # Define some other parameters for use in calculations
     v_tip = blade_rad * omega   # Blade tip speed
@@ -58,20 +60,15 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
     dpsi = 2 * np.pi * y / n_azi_elements   # size of d_psi for each annulus
 
     def bemt_eval(T_old):
-        CT_guess = T_old / (dens * np.pi * blade_rad * (omega*blade_rad)**2)
-        print "(CT, T) = (%f, %f)" % (CT_guess, T_old)
+        CT_guess = T_old / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**2)
         if inflow_model == 'uniform':
-            local_inflow = inflow.uniform_ff(CT_guess, alpha, mu, n_elements)
-            print "ff inflow = " + str(local_inflow)
+            local_inflow = inflow.uniform_ff(CT_guess, alpha, mu, n_elements, tip_loss=tip_loss)
         else:
             local_inflow = 0
 
         dT_mat = np.empty([n_azi_elements, n_elements], dtype=float)
         dH_mat = np.empty([n_azi_elements, n_elements], dtype=float)
         dQ_mat = np.empty([n_azi_elements, n_elements], dtype=float)
-        # dL_observer_mat = np.empty([n_azi_elements, n_elements], dtype=float)
-        # dD_observer_mat = np.empty([n_azi_elements, n_elements], dtype=float)
-        rel_inflow_angle = []
         for i_azi, azi_ang in enumerate(psi):
             u_p = local_inflow * v_tip
             u_t = omega*y + v_inf*np.cos(alpha)*np.sin(azi_ang)
@@ -79,7 +76,6 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
             local_mach = U / spd_snd
             rel_inflow_angle = np.arctan(u_p / u_t)
             eff_aoa = local_angle - rel_inflow_angle
-            print "ff effaoa = " + str(eff_aoa)
 
             # Calculate Reynolds number along the span of the blade
             Re = U * chord / kine_visc
@@ -106,8 +102,6 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
             # Mach number correction to the lift coefficient
             if mach_corr:
                 Cl /= np.sqrt(1 - local_mach**2)
-
-            print "ff Cl = " + str(Cl)
 
             # Calculate sectional lift and drag
             dL = 0.5 * dens * U**2 * chord * Cl * dy
@@ -155,16 +149,13 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
         # Q = sum(dQ)
         # CP = P / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
         # CQ = Q / (dens * np.pi * blade_rad**3 * (omega*blade_rad)**2)
-        print "ff phi = " + str(rel_inflow_angle)
         return T, H, P
 
-    t = sum(bemt_axial(propeller, pitch, omega)[0])
-    print "t0 = " + str(t)
+    t = sum(bemt_axial(propeller, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs)[0])
     bemt_longoutput = []
     converged = False
     i = 0
-    max_i = 20
-    print "starting thrust convergence"
+    max_i = 10
     while not converged and i < max_i:
         tp = 1e-8
         bemt_longoutput = bemt_eval(t)
@@ -175,12 +166,10 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
         converged = abs((tnew - t)/tnew) < 0.0005
         t = tnew
         i += 1
-        print "thrust = " + str(t)
-        print "thrust convergence iterations = " + str(i)
     return bemt_longoutput[0], bemt_longoutput[1], bemt_longoutput[2], converged
 
 
-def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={}, v_climb=0, alt=0, tip_loss=True, mach_corr=True, output='short'):
+def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={}, v_climb=0, alt=0, tip_loss=True, mach_corr=False, output='short'):
     # Calculate geopotential altitude
     alt_geop = (RAD_EARTH*alt)/(RAD_EARTH+alt)
 
@@ -225,10 +214,14 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
     local_inflow, rel_inflow_angle, u_resultant = inflow.axial_flight(local_solidity, propeller, lambda_c, local_angle,
                                                                       alpha0, Clalpha, v_tip, v_climb, omega, r,
                                                                       blade_rad, F, spd_snd, mach_corr=mach_corr)
+    #print "inflow no tip loss = " + str(local_inflow)
+    inflow_notl = local_inflow
     # Now if tip_loss correction is desired, use the F = 1 solution as a starting guess to find the inflow
     if tip_loss:
         converged = np.array([False]*n_elements)
-        while not all(converged):
+        i = 0
+        max_i = 25
+        while not all(converged) and i < max_i:
             local_inflow_old = local_inflow
             f_tip = n_blades/2. * ((1 - r)/(r * rel_inflow_angle))
             f = f_tip
@@ -242,10 +235,9 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
             except FloatingPointError:
                 raise
             converged = abs((local_inflow - local_inflow_old)/local_inflow) < 0.0005
-
-    print "hover inflow = " + str(local_inflow)
-    print "hover phi = " + str(rel_inflow_angle)
-    print "hover local U = " + str(u_resultant)
+            i += 1
+    #print "inflow tip loss = " + str(local_inflow)
+    #print "tl ratio = " + str(local_inflow / inflow_notl)
 
     # Calculate Reynolds number along the span of the blade
     Re = u_resultant * chord / kine_visc
@@ -255,7 +247,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
 
     # Now calculate the effective angle of attack at the blade stations.
     eff_aoa = local_angle - rel_inflow_angle
-    print "hover effaoa = " + str(eff_aoa)
+    #print "hover effaoa = " + str(eff_aoa)
 
     # If we are using only a selection of discrete Reynolds numbers for the sake of calculating lift and drag
     # coefficients, calculate using the linearized Cl functions and polynomial Cd functions found in aero_coeffs.py.
@@ -271,7 +263,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
     else:
         Cl = np.nan_to_num(np.array(aero_coeffs.get_Cl(eff_aoa, Re, Cl_table)))
         Cd = np.nan_to_num(np.array(aero_coeffs.get_Cd(eff_aoa, Re, Cd_table)))
-    print "hover Cl = " + str(Cl)
+    #print "hover Cl = " + str(Cl)
     # Calculate forces
     dL = 0.5*dens*u_resultant**2*chord*Cl*dy
     dD = 0.5*dens*u_resultant**2*chord*Cd*dy

@@ -32,6 +32,8 @@ def get_Cl(aoa, Re, table):
     if not table:
         return 2*np.pi*aoa
     else:
+        print "griddata about to be called"
+        raise Exception
         Cl = griddata(table[0], table[1], zip(aoa_deg, Re), method='nearest')
         return Cl
 
@@ -48,6 +50,7 @@ def get_Cd(aoa, Re, table):
     if not table:
         return 0.02 - 0.0216*aoa + 0.400*aoa**2
     else:
+        "griddata about to be called"
         Cd = griddata(table[0], table[1], zip(aoa_deg, Re), method='nearest')
         return Cd
 

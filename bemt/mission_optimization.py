@@ -23,7 +23,7 @@ def counted(f):
 
 @counted
 def objfun(xn, **kwargs):
-    print "objfun entered"
+    #print "objfun entered"
     radius = kwargs['radius']
     r = kwargs['r']
     y = kwargs['y']
@@ -56,7 +56,7 @@ def objfun(xn, **kwargs):
     twist = calc_twist_dist(twist0, dtwist)
     chord = calc_chord_dist(chord0, dchord)
 
-    f = 1000.
+    f = 10000000.
     fail = 0
     g = [1.0] * (2*len(r)+1)
 
@@ -74,14 +74,9 @@ def objfun(xn, **kwargs):
 
     quad = quadrotor.Quadrotor(prop, vehicle_weight)
 
-    print "quad created"
-
     try:
-        print "twist = " + str(twist)
-        print "chord = " + str(chord)
         dT_h, P_h = bemt.bemt_axial(prop, pitch, omega_h, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                     tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
-        print "Hover thrust is " + str(sum(dT_h))
     except FloatingPointError:
         print "Floating point error in axial BEMT"
         fail = 1
@@ -101,19 +96,26 @@ def objfun(xn, **kwargs):
             fail = 1
             return f, g, fail
 
-        T_trim, H_trim, P_trim, converged = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
-                                                   tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
-                                                   Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+        T_trim, H_trim, P_trim, converged = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf,
+                                                                     n_azi_elements, alt=alt, tip_loss=tip_loss,
+                                                                     mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                                                     Cl_funs=Cl_funs, Cd_funs=Cd_funs)
     except Exception as e:
         print "{} in ff trim".format(type(e).__name__)
-        raise
+        fail = 1
+        return f, g, fail
 
     # Find total energy mission_times = [time_in_hover, time_in_ff] in seconds
     energy = P_h * mission_time[0] + P_trim * mission_time[1]
 
+    if energy <= 0:
+        fail = 1
+        return f, g, fail
+
     f = energy
-    print f
+    print "total energy = " + str(f)
     print "Thrust hover = %s" % str(sum(dT_h))
+    print "(alpha, omega) = (%f, %f)" % (alpha_trim, omega_trim)
 
     # Evaluate thrust constraint. Target thrust must be less than computed thrust
     g[0] = vehicle_weight/4 - sum(dT_h)
@@ -163,8 +165,8 @@ def main():
     r = y/radius
     pitch = 0.0
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
-    allowable_Re = []
-    #allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
+    #allowable_Re = []
+    allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
     vehicle_weight = 11.5
     max_chord = 0.6
     alt = 0
@@ -172,9 +174,9 @@ def main():
     mach_corr = False
 
     # Forward flight parameters
-    v_inf = 2.5     # m/s
-    alpha0 = 6. * np.pi / 180  # Starting guess for trimmed alpha in radians
-    n_azi_elements = 10
+    v_inf = 4     # m/s
+    alpha0 = 2.9 * np.pi / 180  # Starting guess for trimmed alpha in radians
+    n_azi_elements = 5
 
     # Mission times
     time_in_hover = 5. * 60     # Time in seconds
@@ -206,7 +208,7 @@ def main():
     ###########################################
     # Set design variable bounds
     ###########################################
-    omega_start = 5943.0 * 2*np.pi/60
+    omega_start = 4900. * 2*np.pi/60
     # These are c/R values for the DA4002 propeller given at the UIUC propeller database
     chord_base = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
                            0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
@@ -271,18 +273,21 @@ def main():
     opt_prob.addConGroup('c_upper', n_elements, 'i')
     print opt_prob
 
+    pop_size = 10000
+    max_gen = 50
     opt_method = 'nograd'
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
-    nsga2.setOption('PopSize', 5000)
-    nsga2.setOption('maxGen', 10)
+    nsga2.setOption('PopSize', pop_size)
+    nsga2.setOption('maxGen', max_gen)
     nsga2.setOption('pCross_real', 0.85)
     nsga2.setOption('xinit', 1)
     fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
                                airfoils=airfoils, vehicle_weight=vehicle_weight, max_chord=max_chord, tip_loss=tip_loss,
                                mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables,
                                Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method, alt=alt,
-                               v_inf=v_inf, alpha0=alpha0, mission_time=mission_time, n_azi_elements=n_azi_elements)
+                               v_inf=v_inf, alpha0=alpha0, mission_time=mission_time, n_azi_elements=n_azi_elements,
+                               pop_size=pop_size, max_gen=max_gen)
     print opt_prob.solution(0)
 
     # opt_method = 'nograd'
@@ -316,9 +321,18 @@ def main():
         chord_meters = c * radius
         prop = propeller.Propeller(t, chord_meters, radius, n_blades, r, y, dr, dy, airfoils=airfoils,
                                    Cl_tables=Cl_tables, Cd_tables=Cd_tables)
+        quad = quadrotor.Quadrotor(prop, vehicle_weight)
+        ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements, 'allowable_Re': allowable_Re,
+                     'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt}
+        trim0 = np.array([alpha0, o])
+        alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+        T_ff, H_ff, P_ff, _ = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
+                                                       tip_loss=tip_loss, mach_corr=mach_corr,
+                                                       allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs)
 
-        return bemt.bemt_axial(prop, pitch, o, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                               tip_loss=tip_loss, mach_corr=mach_corr, output='long', alt=alt)
+        dT_h, P_h = bemt.bemt_axial(prop, pitch, o, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                    tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
+        return sum(dT_h), P_h, T_ff, P_ff, alpha_trim, omega_trim
 
     omega = xstr[0]
     twist0 = xstr[1]
@@ -338,8 +352,11 @@ def main():
     perf_opt = get_performance(omega, chord, twist)
     #perf_base = get_performance(omega_start, chord_base, twist_base)
     print "Omega optimized = " + str(omega*60/2/np.pi)
-    print "Thrust of optimized = " + str(sum(perf_opt[0]))
-    print "Power of optimized = " + str(sum(perf_opt[1]))
+    print "Hover Thrust of optimized = " + str(perf_opt[0])
+    print "Hover Power of optimized = " + str(perf_opt[1])
+    print "FF Thrust of optimized = " + str(perf_opt[2])
+    print "FF Power of optimized = " + str(perf_opt[3])
+    print "Trim (alpha, omega) = (%f, %f)" % (perf_opt[4], perf_opt[5])
     # print "Omega base = " + str(omega_start*60/2/np.pi)
     # print "Thrust of base = " + str(sum(perf_base[0]))
     # print "Power of base = " + str(sum(perf_base[1]))
