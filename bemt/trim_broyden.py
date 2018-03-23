@@ -20,7 +20,13 @@ def get_dens(alt):
 
 
 def equilibrium(x, v_inf, quadrotor, kwargs, called_from='trim'):
-        alpha, omega = x
+        try:
+            # If x is a 2x1 np.matrix this will handle it
+            alpha = x[0, 0]
+            omega = x[1, 0]
+        except (IndexError, TypeError):
+            # If x is a list or tuple this will handle it
+            alpha, omega = x
         n_azi_elements = kwargs['n_azi_elements']
         alt = kwargs['alt']
         allowable_Re = kwargs['allowable_Re']
@@ -48,63 +54,52 @@ def jacobian(fun, x, vinf, quadrotor, fun_x, kwargs):
         n = len(x)
         jac = np.zeros([n, len(fun_x)])
         eps = 1e-8
-        x_perturb = [[x[0]+eps, x[1]], [x[0], x[1]+eps]]
+        x_perturb = [[x[0, 0]+eps, x[1, 0]], [x[0, 0], x[1, 0]+eps]]
         for i in xrange(n):
             perturb_eval = fun(x_perturb[i], vinf, quadrotor, kwargs, called_from='jacobian')[:-1]
-            jac[i] = (perturb_eval - fun_x) / eps
-        return np.transpose(jac)
-
-
-def trim(quadrotor, v_inf, x0, kwargs):
-    e = 0.005
-    alpha0, omega0 = x0     # tilt angle in radians, rotational speed in rad/s
-    x = np.array([alpha0, omega0])
-    converged = False
-    max_i = 10
-    i = 0
-    while not converged and i <= max_i:
-        if i == max_i:
-            break
-        equilibrium_x = np.array(equilibrium(x, v_inf, quadrotor, kwargs))
-        if not equilibrium_x[-1]:
-            break
-        equilibrium_jac = jacobian(equilibrium, x, v_inf, quadrotor, equilibrium_x[:-1], kwargs)
-        dx = np.linalg.solve(equilibrium_jac, -equilibrium_x[:-1])
-        xnew = x + dx
-        converged = all(abs((xnew[i] - x[i])/xnew[i]) < e for i in xrange(len(xnew)))
-        x = xnew
-        i += 1
-    if not converged:
-        print "trim did not converge"
-    return x[0], x[1], converged
+            jac[i] = (np.array(perturb_eval) - np.array(fun_x.T).reshape(-1,)) / eps
+        return np.matrix(np.transpose(jac))
 
 
 def trim_broyden(quadrotor, v_inf, x0, kwargs):
     e = 0.0005
     converged = False
-    max_i = 10
+    max_i = 20
     i = 1
 
-    x_old = np.array(x0)
-    fx_old = np.array(equilibrium(x_old, v_inf, quadrotor, kwargs))[:-1]
-    jac0 = jacobian(equilibrium, x_old, v_inf, quadrotor, fx_old, kwargs)
-    a_inv_old = np.linalg.inv(jac0)
-    dx = -1 * a_inv_old.dot(fx_old)
+    x_old = np.matrix(x0).T         # 2x1 matrix
+    fx_old = np.matrix(equilibrium(x_old, v_inf, quadrotor, kwargs)[:-1]).T    # 2x1 matrix
+    jac0 = jacobian(equilibrium, x_old, v_inf, quadrotor, fx_old, kwargs)   # 2x2 np.matrix
+    print "jacobian = [[%f, %f], [%f, %f]]" % (jac0[0, 0], jac0[0, 1], jac0[1, 0], jac0[1, 1])
+    a_inv_old = np.linalg.inv(jac0)     # 2x2 np.matrix
+    dx = -1 * a_inv_old*fx_old     # 2x1 np.matrix
     while not converged:
         if i > max_i:
             break
-        x = x_old + dx
-        fx = np.array(equilibrium(x, v_inf, quadrotor, kwargs))
-        if not fx[-1]:
+        x = x_old + dx      # 2x1 np.matrix
+        print "xnew = (%f, %f)" % (x[0, 0], x[1, 0])
+        print "xold = (%f, %f)" % (x_old[0, 0], x_old[1, 0])
+        print "dx   = (%f, %f)" % (dx[0, 0], dx[1, 0])
+        fx = np.matrix(equilibrium(x, v_inf, quadrotor, kwargs)).T  # 3x1 matrix
+        if not fx[2, 0]:
             break
-        fx = fx[:-1]
-        y = fx - fx_old
-        s = x - x_old
-        sT = s[np.newaxis, :].T
-        a_inv = a_inv_old + (1/(sT.dot(a_inv_old).dot(y))) * ((s - a_inv_old.dot(y)).dot(sT).dot(a_inv_old))
-        dx = -1 * a_inv.dot(fx)
-        converged = (x[0] - x_old[0])/x[0] < e and (x[1] - x_old[1])/x[1] < e
+        fx = fx[:-1, 0]        # 2x1 matrix
+        print "(f1, f2) = (%f, %f)" % (fx[0, 0], fx[1, 0])
+        y = fx - fx_old    # 2x1 matrix
+        s = x - x_old     # 2x1 matrix
+        sT = s.T                        # 1x2 matrix
+        a_inv = a_inv_old + ((s - a_inv_old*y)/(sT*a_inv_old*y))*sT*a_inv_old   # 2x2 matrix
+        print "a_inv = [[%f, %f], [%f, %f]]" % (a_inv[0, 0], a_inv[0, 1], a_inv[1, 0], a_inv[1, 1])
+        dx = -1 * a_inv*fx    # 2x1 matrix
+        alpha_conv = (x[0, 0] - x_old[0, 0])/x[0, 0]
+        omega_conv = (x[1, 0] - x_old[1, 0])/x[1, 0]
+        print "alpha_conv = " + str(alpha_conv)
+        print "omega_conv = " + str(omega_conv)
+        converged = abs((x[0, 0] - x_old[0, 0])/x[0, 0]) < e and abs((x[1, 0] - x_old[1, 0])/x[1, 0]) < e
         x_old = x
         i += 1
-
-    return x_old[0], x_old[1], converged
+    if not converged:
+        print "trim did not converge"
+    else:
+        print str(i-1) + " iterations to converge"
+    return x_old[0, 0], x_old[1, 0], converged

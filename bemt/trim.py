@@ -1,5 +1,5 @@
 import numpy as np
-from bemt import bemt_forward_flight
+import bemt
 
 
 def get_dens(alt):
@@ -30,12 +30,14 @@ def equilibrium(x, v_inf, quadrotor, kwargs, called_from='trim'):
         pitch = kwargs['pitch']
         tip_loss = kwargs['tip_loss']
         mach_corr = kwargs['mach_corr']
+        lift_curve_info_dict = kwargs['lift_curve_info_dict']
+        bemt_converged = True
         try:
-            thrust, rotor_drag, rotor_power, bemt_converged = bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf,
-                                                                                  n_azi_elements, alt=alt,
-                                                                                  tip_loss=tip_loss, mach_corr=mach_corr,
-                                                                                  allowable_Re=allowable_Re,
-                                                                                  Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+            thrust, rotor_drag, rotor_power = bemt.bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf,
+                                                                       n_azi_elements, alt=alt, tip_loss=tip_loss,
+                                                                       mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                                                       Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                                                       lift_curve_info_dict=lift_curve_info_dict)
         except Exception as e:
             print "{} in ff bemt".format(type(e).__name__)
             raise
@@ -76,5 +78,7 @@ def trim(quadrotor, v_inf, x0, kwargs):
         i += 1
     if not converged:
         print "trim did not converge"
+    else:
+        print str(i-1) + " iterations to converge"
     return x[0], x[1], converged
 

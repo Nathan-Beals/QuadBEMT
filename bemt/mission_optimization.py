@@ -40,6 +40,7 @@ def objfun(xn, **kwargs):
     Cd_tables = kwargs['Cd_tables']
     Cl_funs = kwargs['Cl_funs']
     Cd_funs = kwargs['Cd_funs']
+    lift_curve_info_dict = kwargs['lift_curve_info_dict']
     allowable_Re = kwargs['allowable_Re']
     opt_method = kwargs['opt_method']
     alt = kwargs['alt']
@@ -77,6 +78,10 @@ def objfun(xn, **kwargs):
     try:
         dT_h, P_h = bemt.bemt_axial(prop, pitch, omega_h, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                     tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
+        if P_h < 0:
+            print "hover power negative"
+            fail = 1
+            return f, g, fail
     except FloatingPointError:
         print "Floating point error in axial BEMT"
         fail = 1
@@ -89,17 +94,22 @@ def objfun(xn, **kwargs):
     try:
         trim0 = [alpha0, omega_h]   # Use alpha0 (supplied by user) and the hover omega as initial guesses for trim
         ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements, 'allowable_Re': allowable_Re,
-                     'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt}
+                     'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt,
+                     'lift_curve_info_dict': lift_curve_info_dict}
 
         alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
         if not converged:
             fail = 1
             return f, g, fail
 
-        T_trim, H_trim, P_trim, converged = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf,
-                                                                     n_azi_elements, alt=alt, tip_loss=tip_loss,
-                                                                     mach_corr=mach_corr, allowable_Re=allowable_Re,
-                                                                     Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+        T_trim, H_trim, P_trim = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements,
+                                                          alt=alt, tip_loss=tip_loss, mach_corr=mach_corr,
+                                                          allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                                          lift_curve_info_dict=lift_curve_info_dict)
+        if P_trim < 0:
+            print "ff power negative"
+            fail = 1
+            return f, g, fail
     except Exception as e:
         print "{} in ff trim".format(type(e).__name__)
         fail = 1
@@ -108,16 +118,12 @@ def objfun(xn, **kwargs):
     # Find total energy mission_times = [time_in_hover, time_in_ff] in seconds
     energy = P_h * mission_time[0] + P_trim * mission_time[1]
 
-    if energy <= 0:
-        fail = 1
-        return f, g, fail
-
     f = energy
     print "total energy = " + str(f)
     print "Thrust hover = %s" % str(sum(dT_h))
     print "(alpha, omega) = (%f, %f)" % (alpha_trim, omega_trim)
 
-    # Evaluate thrust constraint. Target thrust must be less than computed thrust
+    # Evaluate performance constraints.
     g[0] = vehicle_weight/4 - sum(dT_h)
 
     return f, g, fail
@@ -157,7 +163,7 @@ def main():
     ###########################################
     n_blades = 2
     n_elements = 10
-    radius = unit_conversion.in2m(9.0)/2
+    radius = unit_conversion.in2m(9.6)/2
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
     dr = float(1)/n_elements
@@ -167,22 +173,21 @@ def main():
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
     #allowable_Re = []
     allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
-    vehicle_weight = 11.5
+    vehicle_weight = 12.455
     max_chord = 0.6
     alt = 0
     tip_loss = True
     mach_corr = False
 
     # Forward flight parameters
-    v_inf = 4     # m/s
-    alpha0 = 2.9 * np.pi / 180  # Starting guess for trimmed alpha in radians
+    v_inf = 4.     # m/s
+    alpha0 = 0.0454  # Starting guess for trimmed alpha in radians
     n_azi_elements = 5
 
     # Mission times
     time_in_hover = 5. * 60     # Time in seconds
-    time_in_ff = 10. * 60
+    time_in_ff = 500.
     mission_time = [time_in_hover, time_in_ff]
-
 
     Cl_tables = {}
     Cd_tables = {}
@@ -201,14 +206,16 @@ def main():
     # skipped because allowable_Re will be empty.
     Cl_funs = {}
     Cd_funs = {}
+    lift_curve_info_dict = {}
     if Cl_tables and allowable_Re:
         Cl_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cl_fun(Re, Cl_tables[airfoils[0][0]], Clmax[airfoils[0][0]][Re]) for Re in allowable_Re]))
         Cd_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cd_fun(Re, Cd_tables[airfoils[0][0]]) for Re in allowable_Re]))
+        lift_curve_info_dict = aero_coeffs.create_liftCurveInfoDict(allowable_Re, Cl_tables[airfoils[0][0]])
 
     ###########################################
     # Set design variable bounds
     ###########################################
-    omega_start = 4900. * 2*np.pi/60
+    omega_start = 4250. * 2*np.pi/60
     # These are c/R values for the DA4002 propeller given at the UIUC propeller database
     chord_base = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
                            0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
@@ -251,7 +258,7 @@ def main():
     omega_upper = 8000.0 * 2*np.pi/60
 
     twist0_lower = 0.0 * 2 * np.pi / 360
-    twist0_upper = 0.01 * 2 * np.pi / 360
+    twist0_upper = 80. * 2 * np.pi / 360
 
     chord0_upper = 0.1198
     chord0_lower = 0.05
@@ -273,8 +280,8 @@ def main():
     opt_prob.addConGroup('c_upper', n_elements, 'i')
     print opt_prob
 
-    pop_size = 10000
-    max_gen = 50
+    pop_size = 5000
+    max_gen = 8
     opt_method = 'nograd'
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
@@ -287,7 +294,7 @@ def main():
                                mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables,
                                Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method, alt=alt,
                                v_inf=v_inf, alpha0=alpha0, mission_time=mission_time, n_azi_elements=n_azi_elements,
-                               pop_size=pop_size, max_gen=max_gen)
+                               pop_size=pop_size, max_gen=max_gen, lift_curve_info_dict=lift_curve_info_dict)
     print opt_prob.solution(0)
 
     # opt_method = 'nograd'
@@ -322,13 +329,16 @@ def main():
         prop = propeller.Propeller(t, chord_meters, radius, n_blades, r, y, dr, dy, airfoils=airfoils,
                                    Cl_tables=Cl_tables, Cd_tables=Cd_tables)
         quad = quadrotor.Quadrotor(prop, vehicle_weight)
+
         ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements, 'allowable_Re': allowable_Re,
-                     'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt}
+                     'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt,
+                     'lift_curve_info_dict': lift_curve_info_dict}
         trim0 = np.array([alpha0, o])
         alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
-        T_ff, H_ff, P_ff, _ = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
-                                                       tip_loss=tip_loss, mach_corr=mach_corr,
-                                                       allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+        T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
+                                                    tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                                    Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                                    lift_curve_info_dict=lift_curve_info_dict)
 
         dT_h, P_h = bemt.bemt_axial(prop, pitch, o, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                     tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)

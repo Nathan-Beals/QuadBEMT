@@ -81,6 +81,17 @@ def get_liftCurveInfo(Re, table):
     return Clalpha, Cl0, alpha0
 
 
+def create_liftCurveInfoDict(allowable_Re, table):
+    """
+    :param allowable_Re: numpy array of the discrete Reynolds numbers at which data will be saved
+    :param table: ((angle of attack, Reynolds number), Cl)
+    :return: {'Re': (Clalpha, Cl0, alpha0)} for each Re in allowable_Re
+    """
+    allowable_Re = np.array(allowable_Re)
+    Clalpha, Cl0, alpha0 = get_liftCurveInfo(allowable_Re, table)
+    return dict(zip(allowable_Re, zip(Clalpha, Cl0, alpha0)))
+
+
 def get_Cl_fun(Re, Cl_table, Clmax):
     """
 
@@ -137,6 +148,19 @@ def closest_Re(Re, Res_in_table):
         except TypeError:
             Re = np.array(Re)
     return np.array([min(Res_in_table, key=lambda x: abs(x-R)) for R in Re])
+
+
+def closest_Re_new(Re, Res_in_table):
+    if type(Re) is not np.ndarray:
+        try:
+            Re = np.array([float(Re)])
+        except TypeError:
+            Re = np.array(Re)
+    closest = np.zeros(len(Re))
+    for i, R in enumerate(Re):
+        indx = (np.abs(Res_in_table-Re)).argmin()
+        closest[i] = Res_in_table[indx]
+    return closest
 
 
 def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):

@@ -25,8 +25,7 @@ def calc_chord_dist(c0, dc_vec):
 
 n_blades = 2
 n_elements = 10
-radius = unit_conversion.in2m(9.0)/2
-print "radius = " + str(radius)
+radius = unit_conversion.in2m(9.6)/2
 root_cutout = 0.1 * radius
 dy = float(radius-root_cutout)/n_elements
 dr = float(1)/n_elements
@@ -36,16 +35,16 @@ pitch = 0.0
 airfoils = (('SDA1075_494p', 0.0, 1.0),)
 #allowable_Re = []
 allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
-vehicle_weight = 11.5
+vehicle_weight = 12.455
 max_chord = 0.6
 alt = 0
 tip_loss = True
 mach_corr = False
 
 # Forward flight parameters
-v_inf = 4     # m/s
-alpha0 = 6. * np.pi / 180  # Starting guess for trimmed alpha in radians
-n_azi_elements = 10
+v_inf = 4.    # m/s
+alpha0 = 0.0454  # Starting guess for trimmed alpha in radians
+n_azi_elements = 5
 
 # Mission times
 time_in_hover = 5. * 60     # Time in seconds
@@ -70,47 +69,64 @@ if any(airfoil[0] != 'simple' for airfoil in airfoils):
 # skipped because allowable_Re will be empty.
 Cl_funs = {}
 Cd_funs = {}
-if Cl_tables and allowable_Re:
+lift_curve_info_dict = {}
+if any(Cl_tables) and allowable_Re:
     Cl_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cl_fun(Re, Cl_tables[airfoils[0][0]], Clmax[airfoils[0][0]][Re]) for Re in allowable_Re]))
     Cd_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cd_fun(Re, Cd_tables[airfoils[0][0]]) for Re in allowable_Re]))
-    print "Cl and Cd funs created"
+    lift_curve_info_dict = aero_coeffs.create_liftCurveInfoDict(allowable_Re, Cl_tables[airfoils[0][0]])
 
 ###########################################
 # Set design variable bounds
 ###########################################
-omega = 4900. * 2*np.pi/60
-chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
-                       0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154]) * radius
-chord = np.array([chord[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
-twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009,
-                       19.814, 18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
-twist = np.array([twist[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
+# omega = 4250. * 2*np.pi/60
+# chord = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
+#                        0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154]) * radius
+# chord = np.array([chord[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
+# twist = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009,
+#                        19.814, 18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
+# twist = np.array([twist[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
+
+# 5k pop, 75 gen, 5 azi_elem, 9.6 in prop, 12.455 N weight
+chord = np.array([0.11227423, 0.16092858, 0.22110982, 0.3022581, 0.38617348, 0.47079303, 0.48049563, 0.4786548,
+                  0.47093371, 0.45867045])
+chord *= radius
+twist = np.array([0.74143332, 0.6262523, 0.51260884, 0.40929492, 0.34531352, 0.30375519, 0.2827319, 0.19327623,
+                  0.17191792, 0.05220845])
+omega = 3682.44665431 * 2*np.pi/60
 
 prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy, airfoils=airfoils, Cl_tables=Cl_tables,
                            Cd_tables=Cd_tables)
 
 quad = quadrotor.Quadrotor(prop, vehicle_weight)
 
-
-dT_h, P_h = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                            tip_loss=True, mach_corr=mach_corr, alt=alt)
-
-alpha = 0.
 ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements, 'allowable_Re': allowable_Re,
-             'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt}
-
-T_ff, H_ff, P_ff, _ = bemt.bemt_forward_flight(quad, pitch, omega, alpha, v_inf, n_azi_elements, alt=alt,
-                                               tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
-                                               Cl_funs=Cl_funs, Cd_funs=Cd_funs)
+             'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt,
+             'lift_curve_info_dict': lift_curve_info_dict}
 
 
-print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
-print "FF    (thrust, power) = (%f, %f)" % (T_ff, P_ff)
-alpha = 0.06
+# dT_h, P_h = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+#                             tip_loss=True, mach_corr=mach_corr, alt=alt)
+# trim0 = [alpha0, omega]
+# alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+#
+# T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
+#                                             tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+#                                             Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+#                                             lift_curve_info_dict=lift_curve_info_dict)
+#
+# print "(a_trim_new, o_trim_new) = (%f, %f)" % (alpha_trim, omega_trim*60/2/np.pi)
+# print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
+# print "FFnew (T, H, power)   = (%f, %f, %f)" % (T_ff, H_ff, P_ff)
+#
+alpha = 0.04
 trim0 = [alpha, omega]
 for i in xrange(100):
     try:
         alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+        if not converged:
+            print "trim did not converge"
+        else:
+            print "alpha_trim, omega_trim = %f, %f" % (alpha_trim, omega_trim)
     except FloatingPointError:
         print "Floating point error in trim"
     print "i = " + str(i)
