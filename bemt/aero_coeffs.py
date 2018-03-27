@@ -70,7 +70,8 @@ def get_liftCurveInfo(Re, table):
         return np.ones(len(Re))*2*np.pi, np.zeros(len(Re)), np.zeros(len(Re))
 
     Cl_dict = dict(zip(zip(table[0][0], table[0][1]), table[1]))
-    nearest_Re = closest_Re(Re, set(table[0][1]))
+    unique_Res_in_table = np.unique(np.array(table[0][1]))
+    nearest_Re = closest_Re(Re, unique_Res_in_table)
     alfas = [0.0]*len(nearest_Re) + [5.0]*len(nearest_Re)
     points = zip(alfas, np.concatenate((nearest_Re, nearest_Re)))
     vals = np.array([Cl_dict[tuple(point)] for point in points])
@@ -147,18 +148,9 @@ def closest_Re(Re, Res_in_table):
             Re = np.array([float(Re)])
         except TypeError:
             Re = np.array(Re)
-    return np.array([min(Res_in_table, key=lambda x: abs(x-R)) for R in Re])
-
-
-def closest_Re_new(Re, Res_in_table):
-    if type(Re) is not np.ndarray:
-        try:
-            Re = np.array([float(Re)])
-        except TypeError:
-            Re = np.array(Re)
     closest = np.zeros(len(Re))
     for i, R in enumerate(Re):
-        indx = (np.abs(Res_in_table-Re)).argmin()
+        indx = (np.abs(Res_in_table-R)).argmin()
         closest[i] = Res_in_table[indx]
     return closest
 

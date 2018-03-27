@@ -86,15 +86,46 @@ def main():
     twist = np.array([twist[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
     base = (omega, chord, twist, 'DA4002')
 
-    # 5k pop, 8 gen, 5 azi_elem, 9.6 in prop, 12.455 N weight
-    chord = np.array([0.09024478, 0.18743201, 0.2589227, 0.2692717, 0.36417748, 0.39572612, 0.46280335, 0.48632645,
-                      0.449613, 0.50439701])
-    twist = np.array([6.37001388e-05, 1.07349719e-01, 2.64969331e-01, 3.46340529e-01, 3.53158041e-01, 2.99419272e-01,
-                      1.36439696e-01, 1.45026520e-01, 2.09532374e-01, 1.83957955e-01])
-    omega = 4294.52427027 * 2*np.pi/60
-    case1 = (omega, chord, twist, '8gen_5azi')
+    # Hover opt 100 gen, 1000 pop, 12.455 N weight, 9.6 in prop
+    chord = np.array([0.11019156, 0.20021497, 0.30021309, 0.38116296, 0.41117733, 0.34220286, 0.31976733, 0.3051378,
+                      0.2461775, 0.16171859])
+    twist = np.array([0.4114017, 0.27568074, 0.42871935, 0.37570118, 0.32963633, 0.31803996, 0.20201996, 0.2792073,
+                      0.23461276, 0.11703326])
+    omega = 3765.2288005 * 2*np.pi/60
+    hover1 = (omega, chord, twist, 'hover100gen')
 
-    cases2run = (case1,)
+    # Hover opt 500 gen, 1000 pop, 12.455 N weight, 9.6 in prop
+    chord = np.array([0.11923604, 0.2168746, 0.31540216, 0.39822882, 0.42919, 0.35039799, 0.3457828, 0.28567224, 0.23418368, 0.13502483])
+    twist = np.array([0.45316866, 0.38457724, 0.38225075, 0.34671967, 0.33151445, 0.28719111, 0.25679667, 0.25099005, 0.19400679, 0.10926302])
+    omega = 3811.03596674 * 2*np.pi/60
+    hover2 = (omega, chord, twist, 'hover500gen')
+
+    # 5k pop, 10 gen, 9.6in, 12.445 N
+    chord = np.array([0.0728792, 0.15130816, 0.24288949, 0.34110123, 0.41877626, 0.50875582, 0.50219216, 0.48461647,
+                      0.52715237, 0.4960476])
+    twist = np.array([0.38480448, 0.22860905, 0.35666174, 0.2094294, 0.33141239, 0.34117174, 0.26380779, 0.20220869,
+                      0.05000656, 0.0440292])
+    omega = 3998.0227186 * 2*np.pi / 60
+    case1 = (omega, chord, twist, 'case1')
+
+    # 1000 pop, 50 gen, 9.6 in 12.455 N
+    chord = np.array([0.11661063, 0.20755812, 0.28378134, 0.35876439, 0.43670325, 0.53006448, 0.5603994, 0.56488541,
+                      0.58958217, 0.572237])
+    twist = np.array([4.85285561e-01, 3.12838874e-01, 3.19185491e-01, 3.81078639e-01, 2.50041106e-01, 2.51847501e-01,
+                      1.67247053e-01, 1.69140731e-01, 1.59020072e-01, -3.04859048e-04])
+    omega = 4057.36371477 * 2*np.pi/60
+    case2 = (omega, chord, twist, 'case2')
+
+    # 300 pop, 15 gen, 9.6 in, 12.455 N
+    chord = np.array([0.11515094,  0.21356443,  0.2860178 ,  0.30196478,  0.37619129, 0.39739965,  0.30603692,
+                       0.30535553,  0.22078035,  0.12639688])
+    twist = np.array([0.43410038,  0.3728036 ,  0.29237855,  0.34650477,  0.38169184, 0.31704846,  0.2876572,
+                      0.21076985,  0.20945838,  0.07399843])
+    omega = 3993.95692615* 2*np.pi/60
+    case3 = (omega, chord, twist, 'case3')
+
+
+    cases2run = (case1, case2, case3)
 
     def get_performance(o, c, t):
         """
@@ -123,13 +154,16 @@ def main():
 
     def print_performance(c, p):
         print "Case: " + c[3]
+        print "Hover omega  = " + str(c[0]*60/2/np.pi)
         print "Hover thrust = " + str(p[0])
         print "Hover power  = " + str(p[1])
         print "FF thrust    = " + str(p[2])
         print "FF drag      = " + str(p[3])
         print "FF power     = " + str(p[4])
         print "alpha trim   = " + str(p[5])
-        print "omega trim   = " + str(p[6])
+        print "omega trim   = " + str(p[6]*60/2/np.pi)
+        energy = mission_time[0]*p[1] + mission_time[1]*p[4]
+        print "mission energy = " + str(energy)
 
     perf_list = [get_performance(case[0], case[1], case[2]) for case in cases2run]
     for i, perf in enumerate(perf_list):

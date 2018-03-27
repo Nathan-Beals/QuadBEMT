@@ -82,6 +82,10 @@ def objfun(xn, **kwargs):
             print "hover power negative"
             fail = 1
             return f, g, fail
+        if sum(dT_h) < vehicle_weight/4:
+            print "not enough hover thrust"
+            fail = 1
+            return f, g, fail
     except FloatingPointError:
         print "Floating point error in axial BEMT"
         fail = 1
@@ -98,7 +102,7 @@ def objfun(xn, **kwargs):
                      'lift_curve_info_dict': lift_curve_info_dict}
 
         alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
-        if not converged:
+        if not converged or not 0 < alpha_trim < np.pi/2 or omega_trim < 0:
             fail = 1
             return f, g, fail
 
@@ -257,8 +261,11 @@ def main():
     omega_lower = 2000 * 2*np.pi/60
     omega_upper = 8000.0 * 2*np.pi/60
 
-    twist0_lower = 0.0 * 2 * np.pi / 360
-    twist0_upper = 80. * 2 * np.pi / 360
+    # twist0_lower = 10. * 2 * np.pi / 360
+    # twist0_upper = 80. * 2 * np.pi / 360
+
+    twist0_lower = 0. * 2 * np.pi / 360
+    twist0_upper = 60. * 2 * np.pi / 360
 
     chord0_upper = 0.1198
     chord0_lower = 0.05
@@ -280,8 +287,8 @@ def main():
     opt_prob.addConGroup('c_upper', n_elements, 'i')
     print opt_prob
 
-    pop_size = 5000
-    max_gen = 8
+    pop_size = 300
+    max_gen = 500
     opt_method = 'nograd'
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
@@ -353,15 +360,15 @@ def main():
     twist = calc_twist_dist(twist0, dtwist)
     chord = calc_chord_dist(chord0, dchord)
 
-    print "Opt chord = " + str(chord)
-    print "Opt twist = " + str(twist)
+    print "chord = " + repr(chord)
+    print "twist = " + repr(twist)
 
     # twist_base = calc_twist_dist(twist0_base, dtwist_base)
     # chord_base = calc_chord_dist(chord0_base, dchord_base)
 
     perf_opt = get_performance(omega, chord, twist)
     #perf_base = get_performance(omega_start, chord_base, twist_base)
-    print "Omega optimized = " + str(omega*60/2/np.pi)
+    print "omega = " + str(omega*60/2/np.pi)
     print "Hover Thrust of optimized = " + str(perf_opt[0])
     print "Hover Power of optimized = " + str(perf_opt[1])
     print "FF Thrust of optimized = " + str(perf_opt[2])
@@ -370,22 +377,22 @@ def main():
     # print "Omega base = " + str(omega_start*60/2/np.pi)
     # print "Thrust of base = " + str(sum(perf_base[0]))
     # print "Power of base = " + str(sum(perf_base[1]))
-
-    plt.figure(1)
-    plt.plot(r, chord_start, '-b')
-    plt.plot(r, chord, '-r')
-    plt.xlabel('radial location')
-    plt.ylabel('c/R')
-    plt.legend(['start', 'opt'])
-
-    plt.figure(2)
-    plt.plot(r, twist_start*180/np.pi, '-b')
-    plt.plot(r, twist*180/np.pi, '-r')
-    plt.xlabel('radial location')
-    plt.ylabel('twist')
-    plt.legend(['start', 'opt'])
-
-    plt.show()
+    #
+    # plt.figure(1)
+    # plt.plot(r, chord_start, '-b')
+    # plt.plot(r, chord, '-r')
+    # plt.xlabel('radial location')
+    # plt.ylabel('c/R')
+    # plt.legend(['start', 'opt'])
+    #
+    # plt.figure(2)
+    # plt.plot(r, twist_start*180/np.pi, '-b')
+    # plt.plot(r, twist*180/np.pi, '-r')
+    # plt.xlabel('radial location')
+    # plt.ylabel('twist')
+    # plt.legend(['start', 'opt'])
+    #
+    # plt.show()
 
 if __name__ == "__main__":
     main()

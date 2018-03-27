@@ -117,7 +117,7 @@ def main():
     ###########################################
     n_blades = 2
     n_elements = 10
-    radius = unit_conversion.in2m(9.0)/2
+    radius = unit_conversion.in2m(9)/2
     #radius = 0.1397
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
@@ -158,7 +158,7 @@ def main():
     ###########################################
     # Set design variable bounds
     ###########################################
-    omega_start = 5943.0 * 2*np.pi/60
+    omega_start = 7000 * 2*np.pi/60
     chord_base = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
                            0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
     chord_base = np.array([chord_base[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
@@ -196,10 +196,10 @@ def main():
     # chord0_start = 0.0
 
     omega_lower = 2000 * 2*np.pi/60
-    omega_upper = 8000.0 * 2*np.pi/60
+    omega_upper = 9000.0 * 2*np.pi/60
 
     twist0_lower = 0.0 * 2 * np.pi / 360
-    twist0_upper = 0.01 * 2 * np.pi / 360
+    twist0_upper = 80. * 2 * np.pi / 360
 
     chord0_upper = 0.1198
     chord0_lower = 0.05
@@ -225,7 +225,7 @@ def main():
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
     nsga2.setOption('PopSize', 5000)
-    nsga2.setOption('maxGen', 100)
+    nsga2.setOption('maxGen', 500)
     nsga2.setOption('pCross_real', 0.85)
     nsga2.setOption('xinit', 1)
     fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout,
@@ -279,17 +279,17 @@ def main():
     twist = calc_twist_dist(twist0, dtwist)
     chord = calc_chord_dist(chord0, dchord)
 
-    print "Opt chord = " + str(chord)
-    print "Opt twist = " + str(twist)
+    print "chord = " + repr(chord)
+    print "twist = " + repr(twist)
 
     # twist_base = calc_twist_dist(twist0_base, dtwist_base)
     # chord_base = calc_chord_dist(chord0_base, dchord_base)
 
     perf_opt = get_performance(omega, chord, twist)
     #perf_base = get_performance(omega_start, chord_base, twist_base)
-    print "Omega optimized = " + str(omega*60/2/np.pi)
+    print "omega = " + str(omega*60/2/np.pi)
     print "Thrust of optimized = " + str(sum(perf_opt[0]))
-    print "Power of optimized = " + str(sum(perf_opt[1]))
+    print "Power of optimized = " + str(perf_opt[1])
     # print "Omega base = " + str(omega_start*60/2/np.pi)
     # print "Thrust of base = " + str(sum(perf_base[0]))
     # print "Power of base = " + str(sum(perf_base[1]))

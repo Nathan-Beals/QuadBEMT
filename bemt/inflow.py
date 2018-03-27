@@ -68,10 +68,7 @@ def axial_flight(local_solidity, lambda_c, local_angle, alpha0, Clalpha, r, F, l
                                    (local_solidity*this_Clalpha/(8*F)*(local_angle-alpha0)*r)) - \
                            (local_solidity*this_Clalpha/(16*F)) + (lambda_c/2)
         except FloatingPointError:
-            print "FP error in inflow calculation"
             raise
         if any(np.isnan(local) for local in local_inflow):
-            print "Local inflow has nan value"
             raise FloatingPointError
-
     return local_inflow

@@ -39,7 +39,7 @@ def equilibrium(x, v_inf, quadrotor, kwargs, called_from='trim'):
                                                                        Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                                                        lift_curve_info_dict=lift_curve_info_dict)
         except Exception as e:
-            print "{} in ff bemt".format(type(e).__name__)
+            #print "{} in ff bemt".format(type(e).__name__)
             raise
         f1 = thrust*np.sin(alpha) - rotor_drag*np.cos(alpha) - quadrotor.frame_drag(alpha, v_inf, dens)/4
         f2 = thrust*np.cos(alpha) + rotor_drag*np.sin(alpha) - quadrotor.weight/4
@@ -76,9 +76,5 @@ def trim(quadrotor, v_inf, x0, kwargs):
         converged = all(abs((xnew[i] - x[i])/xnew[i]) < e for i in xrange(len(xnew)))
         x = xnew
         i += 1
-    if not converged:
-        print "trim did not converge"
-    else:
-        print str(i-1) + " iterations to converge"
     return x[0], x[1], converged
 
