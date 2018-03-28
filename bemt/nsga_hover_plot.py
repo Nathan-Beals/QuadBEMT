@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import propeller
 import quadrotor
 import bemt
@@ -46,7 +47,7 @@ def main():
     # Forward flight parameters
     v_inf = 4.     # m/s
     alpha0 = 0.0454  # Starting guess for trimmed alpha in radians
-    n_azi_elements = 5
+    n_azi_elements = 100
 
     # Mission times
     time_in_hover = 5. * 60     # Time in seconds
@@ -86,6 +87,8 @@ def main():
     twist = np.array([twist[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
     base = (omega, chord, twist, 'DA4002')
 
+    ####################################### v_inf = 4 cases ###########################################################
+
     # Hover opt 100 gen, 1000 pop, 12.455 N weight, 9.6 in prop
     chord = np.array([0.11019156, 0.20021497, 0.30021309, 0.38116296, 0.41117733, 0.34220286, 0.31976733, 0.3051378,
                       0.2461775, 0.16171859])
@@ -118,14 +121,93 @@ def main():
 
     # 300 pop, 15 gen, 9.6 in, 12.455 N
     chord = np.array([0.11515094,  0.21356443,  0.2860178 ,  0.30196478,  0.37619129, 0.39739965,  0.30603692,
-                       0.30535553,  0.22078035,  0.12639688])
+                      0.30535553,  0.22078035,  0.12639688])
     twist = np.array([0.43410038,  0.3728036 ,  0.29237855,  0.34650477,  0.38169184, 0.31704846,  0.2876572,
                       0.21076985,  0.20945838,  0.07399843])
-    omega = 3993.95692615* 2*np.pi/60
+    omega = 3993.95692615 * 2*np.pi/60
     case3 = (omega, chord, twist, 'case3')
 
+    # 300 pop, 500 gen, 9.6 in, 12.455 N, c_max = 0.6, no c_tip_max
+    chord = np.array([0.11333318,  0.20714241,  0.30688952,  0.40460222,  0.50182865, 0.55843652,  0.58074275,
+                      0.59463337,  0.56960695,  0.57561376])
+    twist = np.array([0.43713452,  0.37610116,  0.28035933,  0.34455469,  0.29613552, 0.23117021,  0.22684089,
+                      0.16601488,  0.11331936,  0.01326311])
+    omega = 3995.62869717 * 2*np.pi/60
+    case4 = (omega, chord, twist, 'case4')
 
-    cases2run = (case1, case2, case3)
+    # 300 pop, 500 gen, 9.6 in, 12.455 N, c_max = 0.6, c_tip_max = 0.25
+    chord = np.array([0.11939826, 0.21928043, 0.31654785, 0.41624897, 0.46007747, 0.44671773, 0.3593443, 0.31909281,
+                      0.22553974, 0.1303472])
+    twist = np.array([0.29267164, 0.3625469, 0.28505877, 0.3554414, 0.30034785, 0.26578228, 0.25055408, 0.20833788,
+                      0.1816911, 0.03696819])
+    omega = 3952.30288602* 2*np.pi/60
+    case5 = (omega, chord, twist, 'case5')
+
+    # 300 pop, 500 gen, 9.6 in, 12.455 N, c_max = 5. c_tip_max = 5.
+    chord = np.array([0.11974794,  0.21912069,  0.31812644,  0.41705443,  0.51620713, 0.61611694,  0.7018769,
+                      0.72303464,  0.74187665,  0.82406679])
+    twist = np.array([0.27600223,  0.34765329,  0.4189613,  0.31230476,  0.31763595, 0.27352963,  0.18479028,
+                      0.18164489,  0.1301707,  0.01280449])
+    omega = 3769.03133552* 2*np.pi/60
+    case6 = (omega, chord, twist, 'case6')
+
+    # 300 pop, 500 gen, 9.6 in, 12.455 N, c_max = 0.6, c_tip_max = 0.4
+    chord = np.array([0.1197414, 0.21951981, 0.31937234, 0.41567804, 0.51567661, 0.45103824, 0.43736838, 0.34144522,
+                      0.27313875, 0.25051002])
+    twist = np.array([0.37309394, 0.48562675, 0.3347374, 0.31337371, 0.33948754, 0.2676794, 0.26660352, 0.23390463,
+                      0.18071602, 0.0097657])
+    omega = 3757.58133102* 2*np.pi/60
+    case7 = (omega, chord, twist, 'case7')
+
+    # 300 pop, 500 gen, 9.6 in, 12.455 N, c_max = 0.4, c_tip_max = 0.25
+    chord = np.array([0.11917634, 0.21906258, 0.31715898, 0.39373037, 0.38919806, 0.35545338, 0.31881517, 0.2784707,
+                      0.19671025, 0.14658203])
+    twist = np.array([0.43826917, 0.44700471, 0.37168474, 0.28746841, 0.27842648, 0.27734615, 0.23716972, 0.20165707,
+                      0.1808409, 0.00838674])
+    omega = 4193.86615577 * 2*np.pi/60
+    case8 = (omega, chord, twist, 'case8')
+
+    # 300 pop, 700 gen, 9.6 in, 12.455 N, c_max = 0.6, c_tip_max = 0.25
+    chord = np.array([0.11697466, 0.21676395, 0.31676083, 0.41367311, 0.45804153, 0.46873766, 0.36884461, 0.32855824,
+                      0.22906588, 0.13536223])
+    twist = np.array([0.30572188, 0.37334749, 0.29231291, 0.37587646, 0.30210497, 0.282821, 0.25690732, 0.22940615,
+                      0.19667221, 0.0233916 ])
+    omega = 3808.17064497 * 2*np.pi/60
+    case9 = (omega, chord, twist, 'case9')
+
+    # 300 pop, 500 gen, 9.6 in, 12.455 N, c_max = 0.6, c_tip_max = 5., F[np.isnan(F)] = 0.99999999
+    chord = np.array([0.11810595, 0.21795989, 0.31654866, 0.41634815, 0.50951731, 0.56384868, 0.59367274, 0.56612156,
+                      0.59401312, 0.59259751])
+    twist = np.array([0.46647849, 0.44827483, 0.36121518, 0.25119389, 0.26948641, 0.29670099, 0.19325489, 0.20519149,
+                      0.11709039, 0.0138717])
+    omega = 3895.22520691 * 2*np.pi/60
+    case10 = (omega, chord, twist, 'case10')
+
+    # 300 pop, 500 gen, 9.6 in, 12.455 N, c_max = 100., dchord_upper/lower = 0.2/-0.2
+    chord = np.array([0.118906,  0.31877433,  0.51877154,  0.71871369,  0.91774941, 1.11350574,  1.3134808, 1.5095779,
+                      1.70781305, 1.90730912])
+    twist = np.array([0.40483507,  0.4336412,  0.3700821,  0.36742537,  0.32636117, 0.31836313,  0.21515102, 0.15104657,
+                      0.12512185, 0.04945353])
+    omega = 3262.61032833 * 2*np.pi/60
+    case11 = (omega, chord, twist, 'case11')
+
+    # 300 pop, 700 gen, 9.6, 12.455, c_max = 0.3, c_tip = 0.25
+    chord = np.array([0.10561703, 0.1985356, 0.29743209, 0.26521539, 0.2981148, 0.29414362, 0.27450984, 0.22486947,
+                      0.19163144, 0.12626986])
+    twist = np.array([0.45382792, 0.38828041, 0.32190524, 0.27353347, 0.24903454, 0.24899439, 0.21955375, 0.20586851,
+                      0.15679694, 0.0129808])
+    omega = 4647.55026389 * 2*np.pi/60
+    case12 = (omega, chord, twist, 'case12')
+
+    # 300 pop, 500 gen, 9.6, 12.455 c_max = 0.6, dFz[-1] = 0.
+    chord = np.array([0.11968948,  0.21937987,  0.3182458,  0.41816814,  0.46347988, 0.37271461,  0.33244453,
+                       0.28706656,  0.22163902,  0.12675553])
+    twist = np.array([0.34646128,  0.459587,  0.35604962,  0.34112132,  0.27325105, 0.26739119,  0.25000727,
+                       0.19915033,  0.15261586, -0.01996389])
+    omega = 4131.4987072* 2*np.pi/60
+    case13 = (omega, chord, twist, 'case13')
+
+    cases2run = (case13,)
 
     def get_performance(o, c, t):
         """
@@ -169,6 +251,44 @@ def main():
     for i, perf in enumerate(perf_list):
         print_performance(cases2run[i], perf)
 
+    color_str = ['k*-', 'kv-', 'ks-', 'ko-', 'kD-']
+
+    plt.figure(1)
+    l = []
+    for i, case in enumerate(cases2run):
+        plt.plot(r, case[1], color_str[i], markerfacecolor='white')
+        l.append(case[-1])
+    plt.xlabel("radial station, r", fontsize=18)
+    plt.ylabel(r'$\mathrm{c/R}$', fontsize=18)
+    plt.legend(l, loc='upper left')
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tick_params(axis='both', which='minor', labelsize=14)
+    plt.xlim([0.0, 1.0])
+
+    plt.figure(2)
+    for i, case in enumerate(cases2run):
+        plt.plot(r, case[2]*360/2/np.pi, color_str[i], markerfacecolor='white')
+        l.append(case[-1])
+    plt.xlabel("radial station, r", fontsize=18)
+    plt.ylabel(r'$\beta,\,\mathrm{degrees}$', fontsize=18)
+    plt.legend(l)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.tick_params(axis='both', which='minor', labelsize=14)
+
+    # data = perf_list[0][-1]
+    # psi = np.linspace(0, 2*np.pi, n_azi_elements)
+    # fig = plt.figure()
+    # ax = Axes3D(fig)
+    # r, th = np.meshgrid(r, psi)
+    # plt.subplot(projection="polar")
+    # plt.pcolormesh(th, r, data)
+    # plt.colorbar()
+    # #plt.pcolormesh(th, z, r)
+    # plt.plot(psi, r, color='k', ls='none')
+    # plt.grid()
+
+    plt.show()
+
     # l_case1 = [r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.6}$',
     #            r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.4}$',
     #            r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
@@ -186,7 +306,7 @@ def main():
     #                      r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.3}$',
     #                      r'$\mathrm{(}\mathrm{c/R}\mathrm{)}_\mathrm{u}\mathrm{=}\mathrm{0.2}$']
     #
-    # color_str = ['k*-', 'kv-', 'ks-', 'ko-', 'kD-']
+    #
 
     # plt.figure(1)
     # l = []

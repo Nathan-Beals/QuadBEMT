@@ -216,6 +216,9 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
     dT_mat = np.empty([n_azi_elements, n_elements], dtype=float)
     dH_mat = np.empty([n_azi_elements, n_elements], dtype=float)
     dP_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+    # dPo_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+    # dPi_mat = np.empty([n_azi_elements, n_elements], dtype=float)
+    # inflow_mat = np.empty([n_azi_elements, n_elements], dtype=float)
 
     for i_azi, azi_ang in enumerate(psi):
         u_t = omega*y + v_inf*np.cos(alpha)*np.sin(azi_ang)
@@ -253,6 +256,7 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
                 f = f_tip
                 f[-1] = 0.0000000000001
                 F = (2/np.pi) * np.arccos(np.exp(-f))
+                #F[np.isnan(F)] = 0.99999999
 
             this_Clalpha = np.array(Clalpha)
             mu_array = np.ones(len(r))*mu
@@ -274,19 +278,22 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
                     print "Local inflow has nan value"
                     raise FloatingPointError
 
-            u_p = ff_inflow * v_tip
-            rel_inflow_angle = np.arctan(u_p / u_t)
-            u_resultant = np.sqrt(u_p**2 + u_t**2)
-
             f_lambda = local_inflow - ff_inflow
             f_perturb = (local_inflow + eps) - ff_inflow_perturb
             f_lambda_prime = (f_perturb - f_lambda) / eps
             local_inflow -= f_lambda/f_lambda_prime
+
             converged = abs((local_inflow - local_inflow_old)/local_inflow) < 0.005
+
+            u_p = local_inflow * v_tip
+            rel_inflow_angle = np.arctan(u_p / u_t)
+            u_resultant = np.sqrt(u_p**2 + u_t**2)
+
             i += 1
         if not all(converged):
             raise FloatingPointError
         #############################################################################################################
+        #inflow_mat[i_azi:] = local_inflow
         eff_aoa = local_angle - rel_inflow_angle
 
         # Calculate Reynolds number along the span of the blade
@@ -316,6 +323,8 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
 
         # Calculate sectional (wrt blade reference frame) normal and in-plane forces
         dFz = dL * np.cos(rel_inflow_angle) - dD * np.sin(rel_inflow_angle)
+        if tip_loss:
+            dFz[np.argwhere(r > 0.97)] = 0.
         dFx = dL * np.sin(rel_inflow_angle) + dD * np.cos(rel_inflow_angle)
 
         # Calculate rotor thrust and drag and torque with respect to the rotor frame
@@ -326,6 +335,11 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
         dT_mat[i_azi:] = dT
         dH_mat[i_azi:] = dH
         dP_mat[i_azi:] = dP
+
+        # dPo = y * dD * np.cos(rel_inflow_angle) * omega
+        # dPi = y * dL * np.sin(rel_inflow_angle) * omega
+        # dPo_mat[i_azi:] = dPo
+        # dPi_mat[i_azi:] = dPi
 
     # Calculate total thrust and thrust coefficient
     dT = np.mean(dT_mat, axis=0) * n_blades
@@ -340,10 +354,18 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
     # Calculate rotor torque, and power
     dP = np.mean(dP_mat, axis=0) * n_blades
     P = sum(dP)
+
+    # dPo = np.mean(dPo_mat, axis=0) * n_blades
+    # dPi = np.mean(dPi_mat, axis=0) * n_blades
+    # print "Profile power dist = " + str(dPo)
+    # print "Total profile power = " + str(sum(dPo))
+    # print "Induced power dist = " + str(dPi)
+    # print "Total induced power = " + str(sum(dPi))
+
     # Q = sum(dQ)
     # CP = P / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**3)
     # CQ = Q / (dens * np.pi * blade_rad**3 * (omega*blade_rad)**2)
-    return T, H, P
+    return T, H, P#, inflow_mat
 
 
 def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={}, v_climb=0, alt=0, tip_loss=True,
@@ -408,6 +430,7 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
             f = f_tip
             f[-1] = 0.0000000000001
             F = (2/np.pi) * np.arccos(np.exp(-f))
+            #F[np.isnan(F)] = 0.999999999
             try:
                 local_inflow = inflow.axial_flight(local_solidity, lambda_c, local_angle, alpha0, Clalpha, r, F,
                                                    local_mach, mach_corr=mach_corr)
@@ -448,6 +471,8 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
     dD = 0.5*dens*u_resultant**2*chord*Cd*dy
 
     dFz = dL*np.cos(rel_inflow_angle) - dD*np.sin(rel_inflow_angle)
+    if tip_loss:
+        dFz[np.argwhere(r > 0.97)] = 0.
     dFx = dD*np.cos(rel_inflow_angle) + dL*np.sin(rel_inflow_angle)
 
     dT = n_blades * dFz

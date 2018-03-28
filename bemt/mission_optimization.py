@@ -34,6 +34,7 @@ def objfun(xn, **kwargs):
     pitch = kwargs['pitch']
     vehicle_weight = kwargs['vehicle_weight']
     max_chord = kwargs['max_chord']
+    max_chord_tip = kwargs['max_chord_tip']
     tip_loss = kwargs['tip_loss']
     mach_corr = kwargs['mach_corr']
     Cl_tables = kwargs['Cl_tables']
@@ -59,12 +60,13 @@ def objfun(xn, **kwargs):
 
     f = 10000000.
     fail = 0
-    g = [1.0] * (2*len(r)+1)
+    g = [1.0] * (2*len(r)+2)
 
     # Calculate geometric constraint values. If a genetic algorithm is used we can fail the case immediately if there
     # are any violations. If a gradient-based algorithm is used this will cause the gradient calculation to fail so the
     # constraints must be checked normally by the optimizer.
-    g[1:] = get_geocons(chord, max_chord, radius)
+    g[1] = chord[-1]/radius - max_chord_tip
+    g[2:] = get_geocons(chord, max_chord, radius)
     if opt_method == 'nograd':
         if any(geocon > 0.0 for geocon in g[1:]):
             print "geocons violated"
@@ -179,6 +181,7 @@ def main():
     allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
     vehicle_weight = 12.455
     max_chord = 0.6
+    max_chord_tip = 5.
     alt = 0
     tip_loss = True
     mach_corr = False
@@ -283,12 +286,13 @@ def main():
     opt_prob.addVarGroup('dchord', n_elements-1, 'c', value=dchord_start, lower=dchord_lower, upper=dchord_upper)
     opt_prob.addObj('f')
     opt_prob.addCon('thrust', 'i')
+    opt_prob.addCon('c_tip', 'i')
     opt_prob.addConGroup('c_lower', n_elements, 'i')
     opt_prob.addConGroup('c_upper', n_elements, 'i')
     print opt_prob
 
     pop_size = 300
-    max_gen = 500
+    max_gen = 700
     opt_method = 'nograd'
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
@@ -301,7 +305,8 @@ def main():
                                mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables,
                                Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method, alt=alt,
                                v_inf=v_inf, alpha0=alpha0, mission_time=mission_time, n_azi_elements=n_azi_elements,
-                               pop_size=pop_size, max_gen=max_gen, lift_curve_info_dict=lift_curve_info_dict)
+                               pop_size=pop_size, max_gen=max_gen, lift_curve_info_dict=lift_curve_info_dict,
+                               max_chord_tip=max_chord_tip)
     print opt_prob.solution(0)
 
     # opt_method = 'nograd'

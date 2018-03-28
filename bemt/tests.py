@@ -118,15 +118,41 @@ ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements
 # print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
 # print "FFnew (T, H, power)   = (%f, %f, %f)" % (T_ff, H_ff, P_ff)
 #
+# alpha = 0.04
+# trim0 = [alpha, omega]
+# failed_converge = []
+# for v in np.arange(0, 15., 0.1):
+#     try:
+#         alpha_trim, omega_trim, converged = trim.trim(quad, v, trim0, ff_kwargs)
+#         T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v, n_azi_elements, alt=alt,
+#                                                     tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+#                                                     Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+#                                                     lift_curve_info_dict=lift_curve_info_dict)
+#         if not converged:
+#             print "trim did not converge"
+#             failed_converge.append(v)
+#         else:
+#             print "(alpha_trim, omega_trim, V, P) = (%f, %f, %f, %f)" % (alpha_trim, omega_trim, v, P_ff)
+#         trim0 = [alpha_trim, omega_trim]
+#     except FloatingPointError:
+#         print "Floating point error in trim"
+# print "\n"
+# print "Speeds that failed to converge: \n"
+# print repr(failed_converge)
+
 alpha = 0.04
 trim0 = [alpha, omega]
-for i in xrange(100):
+for v in [0.7, 0.9]:
     try:
-        alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+        alpha_trim, omega_trim, converged = trim.trim(quad, v, trim0, ff_kwargs)
+        T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v, n_azi_elements, alt=alt,
+                                                    tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                                    Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                                    lift_curve_info_dict=lift_curve_info_dict)
         if not converged:
             print "trim did not converge"
         else:
-            print "alpha_trim, omega_trim = %f, %f" % (alpha_trim, omega_trim)
+            print "(alpha_trim, omega_trim, V, P) = (%f, %f, %f, %f)" % (alpha_trim, omega_trim, v, P_ff)
+        trim0 = [alpha_trim, omega_trim]
     except FloatingPointError:
         print "Floating point error in trim"
-    print "i = " + str(i)
