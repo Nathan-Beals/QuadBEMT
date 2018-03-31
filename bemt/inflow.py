@@ -1,33 +1,24 @@
 import numpy as np
 
 
-def uniform_ff(CT, alpha, mu, n_elements, tip_loss=False):
+def uniform_ff(CT, alpha, mu, n_elements):
     with np.errstate(invalid='raise'):
         try:
             inflow = np.sqrt(CT/2)
         except FloatingPointError:
             print "FP error in ff inflow"
             raise
-    B = 1.
     converged = False
     max_i = 100
     i = 0
     while not converged and i < max_i:
         inflow_old = inflow
-        if tip_loss:
-            f = inflow - mu*np.tan(alpha) - CT/(2*B**2*np.sqrt(mu**2+inflow**2))
-            f_prime = 1 + CT/2*(mu**2+inflow**2)**(-float(3)/2)*inflow
-        else:
-            f = inflow - mu*np.tan(alpha) - CT/(2*np.sqrt(mu**2+inflow**2))
-            f_prime = 1 + CT/2/B**2*(mu**2+inflow**2)**(-float(3)/2)*inflow
+        f = inflow - mu*np.tan(alpha) - CT/(2*np.sqrt(mu**2+inflow**2))
+        f_prime = 1 + CT/2**2*(mu**2+inflow**2)**(-float(3)/2)*inflow
         inflow -= f/f_prime
-        converged = abs((inflow - inflow_old)/inflow) < 0.0005
+        converged = abs((inflow - inflow_old)/inflow) < 0.005
         i += 1
     inflow_span = inflow * np.ones(n_elements)
-    if tip_loss:
-        inflow_span[-1] *= 3.
-        inflow_span[-2] *= 1.5
-        inflow_span[-3] *= 1.2
     return inflow_span
 
 

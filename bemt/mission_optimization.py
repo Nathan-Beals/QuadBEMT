@@ -2,6 +2,7 @@ import unit_conversion
 import propeller
 import quadrotor
 import bemt
+import old_ff_bemt
 import trim
 from pyOpt import Optimization
 from pyOpt import NSGA2
@@ -192,8 +193,8 @@ def main():
     n_azi_elements = 5
 
     # Mission times
-    time_in_hover = 5. * 60     # Time in seconds
-    time_in_ff = 500.
+    time_in_hover = 1     # Time in seconds
+    time_in_ff = 300.
     mission_time = [time_in_hover, time_in_ff]
 
     Cl_tables = {}
@@ -243,29 +244,8 @@ def main():
     chord0_start = chord0_base
     print "chord0_start = " + str(chord0_start)
 
-    # chord = np.array([8.92386048e-02, 1.73000845e-01, 2.70523039e-01, 2.71542807e-01, 2.78749355e-01, 2.36866151e-01,
-    #                   2.04103526e-01, 1.37456074e-01, 8.68094589e-02, 1.05601135e-04])
-    # twist = np.array([0.00161645, 0.15105685, 0.28791442, 0.31577392, 0.28644651, 0.27418749, 0.24854514, 0.21812646,
-    #                   0.19802027, 0.14972058])
-    # omega_start = 3184.41320387 * 2*np.pi/60
-    # chord_start = chord
-    # twist_start = twist
-    # dchord_start = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
-    # dtwist_start = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
-    # twist0_start = twist[0]
-    # chord0_start = chord[0]
-
-    ## Initialize everything to zeros
-    # dtwist_start = np.zeros(n_elements-1)
-    # dchord_start = np.zeros(n_elements-1)
-    # twist0_start = 0.0
-    # chord0_start = 0.0
-
     omega_lower = 2000 * 2*np.pi/60
     omega_upper = 8000.0 * 2*np.pi/60
-
-    # twist0_lower = 10. * 2 * np.pi / 360
-    # twist0_upper = 80. * 2 * np.pi / 360
 
     twist0_lower = 0. * 2 * np.pi / 360
     twist0_upper = 60. * 2 * np.pi / 360
@@ -292,7 +272,7 @@ def main():
     print opt_prob
 
     pop_size = 300
-    max_gen = 700
+    max_gen = 900
     opt_method = 'nograd'
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)

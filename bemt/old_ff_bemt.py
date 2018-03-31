@@ -14,7 +14,8 @@ kine_visc = 1.460 * 10**-5  # Kinematic viscosity of air
 
 
 def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, alt=0, tip_loss=True,
-                        mach_corr=False, inflow_model='uniform', allowable_Re=[], Cl_funs={}, Cd_funs={}):
+                        mach_corr=False, inflow_model='uniform', allowable_Re=[], Cl_funs={}, Cd_funs={},
+                        lift_curve_info_dict={}):
 
     alt_geop = (RAD_EARTH*alt)/(RAD_EARTH+alt)
     temp = TEMP_SSL - A * alt_geop
@@ -39,38 +40,28 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
     airfoil = propeller.airfoils[0][0]
     Cl_table = propeller.Cl_tables[airfoil]
     Cd_table = propeller.Cd_tables[airfoil]
+    lift_curve_info_dict = lift_curve_info_dict
     allowable_Re = allowable_Re
     Cl_funs = Cl_funs
     Cd_funs = Cd_funs
 
-
     # Define some other parameters for use in calculations
     v_tip = blade_rad * omega   # Blade tip speed
     mu = v_inf*np.cos(alpha)/(omega*blade_rad)  # Advance ratio
-    # Define initial guess of thrust required using the hover value for the current omega
-    dT = np.empty(n_elements)
-    dP = np.empty(n_elements)
-    P = 0.0
-    T = 0.0
-    H = 0.0
 
     # Now do the forward flight case. Since the velocity components normal and in plane with the TPP are now a
     # function of the blade azimuth angle, psi, we need to average forces over the entire range of psi.
-    psi = np.linspace(0, 2*np.pi, n_azi_elements)
-    dpsi = 2 * np.pi * y / n_azi_elements   # size of d_psi for each annulus
+    psi = np.linspace(0, 2*np.pi, n_azi_elements+1)[:-1]
 
     def bemt_eval(T_old):
         CT_guess = T_old / (dens * np.pi * blade_rad**2 * (omega*blade_rad)**2)
-        if inflow_model == 'uniform':
-            local_inflow = inflow.uniform_ff(CT_guess, alpha, mu, n_elements, tip_loss=tip_loss)
-        else:
-            local_inflow = 0
+        local_inflow = inflow.uniform_ff(CT_guess, alpha, mu, n_elements)
+        u_p = local_inflow * v_tip
 
         dT_mat = np.empty([n_azi_elements, n_elements], dtype=float)
         dH_mat = np.empty([n_azi_elements, n_elements], dtype=float)
         dQ_mat = np.empty([n_azi_elements, n_elements], dtype=float)
         for i_azi, azi_ang in enumerate(psi):
-            u_p = local_inflow * v_tip
             u_t = omega*y + v_inf*np.cos(alpha)*np.sin(azi_ang)
             U = (u_t**2 + u_p**2)**0.5
             local_mach = U / spd_snd
@@ -79,9 +70,8 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
 
             # Calculate Reynolds number along the span of the blade
             Re = U * chord / kine_visc
-            # Re_actual = np.array(Re)
             if allowable_Re:
-                Re = np.array([min(allowable_Re, key=lambda x: abs(x-rn)) for rn in Re])
+                Re = aero_coeffs.closest_Re(Re, allowable_Re)
 
             # If we are using only a selection of discrete Reynolds numbers for the sake of calculating lift and
             # drag coefficients, calculate using the linearized Cl functions and polynomial Cd functions found in
@@ -105,6 +95,8 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
 
             # Calculate sectional lift and drag
             dL = 0.5 * dens * U**2 * chord * Cl * dy
+            if tip_loss:
+                dL[-1] = 0.
             dD = 0.5 * dens * U**2 * chord * Cd * dy
 
             # Calculate sectional (wrt blade reference frame) normal and in-plane forces
@@ -164,7 +156,7 @@ def bemt_forward_flight(quadrotor, pitch, omega, alpha, v_inf, n_azi_elements, a
         ftp = (t + tp) - bemt_eval(t + tp)[0]
         ftprime = (ftp - ft) / tp
         tnew = t - ft / ftprime
-        converged = abs((tnew - t)/tnew) < 0.0005
+        converged = abs((tnew - t)/tnew) < 0.005
         t = tnew
         i += 1
-    return bemt_longoutput[0], bemt_longoutput[1], bemt_longoutput[2], converged
+    return bemt_longoutput[0], bemt_longoutput[1], bemt_longoutput[2]

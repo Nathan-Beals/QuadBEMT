@@ -30,7 +30,7 @@ def objfun(xn, **kwargs):
     n_blades = kwargs['n_blades']
     airfoils = kwargs['airfoils']
     pitch = kwargs['pitch']
-    target_thrust = kwargs['thrust']
+    target_thrust = kwargs['vehicle_weight']/4
     cval_max = kwargs['max_chord']
     tip_loss = kwargs['tip_loss']
     mach_corr = kwargs['mach_corr']
@@ -117,7 +117,7 @@ def main():
     ###########################################
     n_blades = 2
     n_elements = 10
-    radius = unit_conversion.in2m(9)/2
+    radius = unit_conversion.in2m(9.6)/2
     #radius = 0.1397
     root_cutout = 0.1 * radius
     dy = float(radius-root_cutout)/n_elements
@@ -128,7 +128,7 @@ def main():
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
     #allowable_Re = []
     allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
-    thrust = 4.61
+    vehicle_weight = 12.455
     max_chord = 0.6
     alt = 0
     tip_loss = True
@@ -151,14 +151,16 @@ def main():
     # skipped because allowable_Re will be empty.
     Cl_funs = {}
     Cd_funs = {}
+    lift_curve_info_dict = {}
     if Cl_tables and allowable_Re:
         Cl_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cl_fun(Re, Cl_tables[airfoils[0][0]], Clmax[airfoils[0][0]][Re]) for Re in allowable_Re]))
         Cd_funs = dict(zip(allowable_Re, [aero_coeffs.get_Cd_fun(Re, Cd_tables[airfoils[0][0]]) for Re in allowable_Re]))
+        lift_curve_info_dict = aero_coeffs.create_liftCurveInfoDict(allowable_Re, Cl_tables[airfoils[0][0]])
 
     ###########################################
     # Set design variable bounds
     ###########################################
-    omega_start = 7000 * 2*np.pi/60
+    omega_start = 4250.* 2*np.pi/60
     chord_base = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
                            0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
     chord_base = np.array([chord_base[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
@@ -196,10 +198,10 @@ def main():
     # chord0_start = 0.0
 
     omega_lower = 2000 * 2*np.pi/60
-    omega_upper = 9000.0 * 2*np.pi/60
+    omega_upper = 8000.0 * 2*np.pi/60
 
     twist0_lower = 0.0 * 2 * np.pi / 360
-    twist0_upper = 80. * 2 * np.pi / 360
+    twist0_upper = 60. * 2 * np.pi / 360
 
     chord0_upper = 0.1198
     chord0_lower = 0.05
@@ -224,15 +226,15 @@ def main():
     opt_method = 'nograd'
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
-    nsga2.setOption('PopSize', 5000)
+    nsga2.setOption('PopSize', 300)
     nsga2.setOption('maxGen', 500)
     nsga2.setOption('pCross_real', 0.85)
     nsga2.setOption('xinit', 1)
     fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout,
-                               radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, thrust=thrust,
+                               radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch, airfoils=airfoils, vehicle_weight=vehicle_weight,
                                max_chord=max_chord, tip_loss=tip_loss, mach_corr=mach_corr, Cl_funs=Cl_funs,
                                Cd_funs=Cd_funs, Cl_tables=Cl_tables, Cd_tables=Cd_tables, allowable_Re=allowable_Re,
-                               opt_method=opt_method, alt=alt)
+                               opt_method=opt_method, alt=alt, lift_curve_info_dict=lift_curve_info_dict)
     print opt_prob.solution(0)
 
     # opt_method = 'nograd'
