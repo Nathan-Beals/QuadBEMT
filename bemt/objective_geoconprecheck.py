@@ -227,7 +227,7 @@ def main():
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
     nsga2.setOption('PopSize', 300)
-    nsga2.setOption('maxGen', 500)
+    nsga2.setOption('maxGen', 1100)
     nsga2.setOption('pCross_real', 0.85)
     nsga2.setOption('xinit', 1)
     fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, n_elements=n_elements, root_cutout=root_cutout,

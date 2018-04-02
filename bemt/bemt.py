@@ -310,8 +310,8 @@ def bemt_axial(propeller, pitch, omega, allowable_Re=[], Cl_funs={}, Cd_funs={},
 
     # Calculate forces
     dL = 0.5*dens*u_resultant**2*chord*Cl*dy
-    if tip_loss:
-        dL[-1] = 0.
+    # if tip_loss:
+    #     dL[-1] = 0.
     dD = 0.5*dens*u_resultant**2*chord*Cd*dy
 
     dFz = dL*np.cos(rel_inflow_angle) - dD*np.sin(rel_inflow_angle)

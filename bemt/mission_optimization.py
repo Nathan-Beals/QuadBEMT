@@ -181,7 +181,7 @@ def main():
     #allowable_Re = []
     allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
     vehicle_weight = 12.455
-    max_chord = 0.6
+    max_chord = 0.3
     max_chord_tip = 5.
     alt = 0
     tip_loss = True
@@ -193,8 +193,8 @@ def main():
     n_azi_elements = 5
 
     # Mission times
-    time_in_hover = 1     # Time in seconds
-    time_in_ff = 300.
+    time_in_hover = 300.     # Time in seconds
+    time_in_ff = 500.
     mission_time = [time_in_hover, time_in_ff]
 
     Cl_tables = {}
@@ -272,7 +272,7 @@ def main():
     print opt_prob
 
     pop_size = 300
-    max_gen = 900
+    max_gen = 1100
     opt_method = 'nograd'
     nsga2 = NSGA2()
     nsga2.setOption('PrintOut', 2)
