@@ -11,7 +11,6 @@ from pyOpt import ALPSO
 import numpy as np
 import aero_coeffs
 import matplotlib.pyplot as plt
-import random
 
 
 def counted(f):
@@ -22,10 +21,8 @@ def counted(f):
     wrapped.calls = 0
     return wrapped
 
-
 @counted
 def objfun(xn, **kwargs):
-    #print "objfun entered"
     radius = kwargs['radius']
     r = kwargs['r']
     y = kwargs['y']
@@ -45,7 +42,6 @@ def objfun(xn, **kwargs):
     Cd_funs = kwargs['Cd_funs']
     lift_curve_info_dict = kwargs['lift_curve_info_dict']
     allowable_Re = kwargs['allowable_Re']
-    opt_method = kwargs['opt_method']
     alt = kwargs['alt']
     v_inf = kwargs['v_inf']
     alpha0 = kwargs['alpha0']
@@ -69,10 +65,6 @@ def objfun(xn, **kwargs):
     # constraints must be checked normally by the optimizer.
     g[1] = chord[-1]/radius - max_chord_tip
     g[2:] = get_geocons(chord, max_chord, radius)
-    if opt_method == 'nograd':
-        if any(geocon > 0.0 for geocon in g[1:]):
-            print "geocons violated"
-            return f, g, fail
 
     prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy, airfoils=airfoils, Cl_tables=Cl_tables,
                                Cd_tables=Cd_tables)
@@ -82,14 +74,6 @@ def objfun(xn, **kwargs):
     try:
         dT_h, P_h = bemt.bemt_axial(prop, pitch, omega_h, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                     tip_loss=tip_loss, mach_corr=mach_corr, alt=alt)
-        if P_h < 0:
-            print "hover power negative"
-            fail = 1
-            return f, g, fail
-        if sum(dT_h) < vehicle_weight/4:
-            print "not enough hover thrust"
-            fail = 1
-            return f, g, fail
     except FloatingPointError:
         print "Floating point error in axial BEMT"
         fail = 1
@@ -114,10 +98,6 @@ def objfun(xn, **kwargs):
                                                           alt=alt, tip_loss=tip_loss, mach_corr=mach_corr,
                                                           allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                                           lift_curve_info_dict=lift_curve_info_dict)
-        if P_trim < 0:
-            print "ff power negative"
-            fail = 1
-            return f, g, fail
     except Exception as e:
         print "{} in ff trim".format(type(e).__name__)
         fail = 1
@@ -133,6 +113,8 @@ def objfun(xn, **kwargs):
 
     # Evaluate performance constraints.
     g[0] = vehicle_weight/4 - sum(dT_h)
+    if g[0] > 0:
+        print "hover thrust too low"
 
     return f, g, fail
 
@@ -179,10 +161,9 @@ def main():
     r = y/radius
     pitch = 0.0
     airfoils = (('SDA1075_494p', 0.0, 1.0),)
-    #allowable_Re = []
     allowable_Re = [1000000., 500000., 250000., 100000., 90000., 80000., 70000., 60000., 50000., 40000., 30000., 20000., 10000.]
     vehicle_weight = 12.455
-    max_chord = 0.6
+    max_chord = 0.3
     max_chord_tip = 5.
     alt = 0
     tip_loss = True
@@ -190,11 +171,11 @@ def main():
 
     # Forward flight parameters
     v_inf = 4.     # m/s
-    alpha0 = 0.0454     # Starting guess for trimmed alpha in radians
+    alpha0 = 0.0454  # Starting guess for trimmed alpha in radians
     n_azi_elements = 5
 
     # Mission times
-    time_in_hover = 0.     # Time in seconds
+    time_in_hover = 300.     # Time in seconds
     time_in_ff = 500.
     mission_time = [time_in_hover, time_in_ff]
 
@@ -224,26 +205,23 @@ def main():
     ###########################################
     # Set design variable bounds
     ###########################################
-    omega_start = 4250. * 2*np.pi/60
-    # These are c/R values for the DA4002 propeller given at the UIUC propeller database
-    chord_base = np.array([0.1198, 0.1128, 0.1436, 0.1689, 0.1775, 0.1782, 0.1773, 0.1782, 0.1790, 0.1787, 0.1787,
-                           0.1786, 0.1785, 0.1790, 0.1792, 0.1792, 0.1692, 0.0154])
-    chord_base = np.array([chord_base[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
-    twist_base = np.array([42.481, 44.647, 41.154, 37.475, 34.027, 30.549, 27.875, 25.831, 23.996, 22.396, 21.009,
-                           19.814, 18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
-    twist_base = np.array([twist_base[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
-    dtwist_base = np.array([twist_base[i+1]-twist_base[i] for i in xrange(len(twist_base)-1)])
-    dchord_base = np.array([chord_base[i+1]-chord_base[i] for i in xrange(len(chord_base)-1)])
-    twist0_base = twist_base[0]
-    chord0_base = chord_base[0]
+    # Hover opt 500 gen, 1000 pop, 12.455 N weight, 9.6 in prop
+    chord = np.array([0.11923604, 0.2168746, 0.31540216, 0.39822882, 0.42919, 0.35039799, 0.3457828, 0.28567224, 0.23418368, 0.13502483])
+    twist = np.array([0.45316866, 0.38457724, 0.38225075, 0.34671967, 0.33151445, 0.28719111, 0.25679667, 0.25099005, 0.19400679, 0.10926302])
+    omega = 3811.03596674 * 2*np.pi/60
+    original = (omega, chord, twist)
 
-    chord_start = chord_base
-    twist_start = twist_base
-    dtwist_start = dtwist_base
-    dchord_start = dchord_base
-    twist0_start = twist0_base
-    chord0_start = chord0_base
-    print "chord0_start = " + str(chord0_start)
+    dtwist = np.array([twist[i+1]-twist[i] for i in xrange(len(twist)-1)])
+    dchord = np.array([chord[i+1]-chord[i] for i in xrange(len(chord)-1)])
+    twist0 = twist[0]
+    chord0 = chord[0]
+
+    omega_start = omega
+
+    dtwist_start = dtwist
+    dchord_start = dchord
+    twist0_start = twist0
+    chord0_start = chord0
 
     omega_lower = 2000 * 2*np.pi/60
     omega_upper = 8000.0 * 2*np.pi/60
@@ -272,24 +250,35 @@ def main():
     opt_prob.addConGroup('c_upper', n_elements, 'i')
     print opt_prob
 
-    pop_size = 300
-    max_gen = 1100
-    opt_method = 'nograd'
-    nsga2 = NSGA2()
-    nsga2.setOption('PrintOut', 2)
-    nsga2.setOption('PopSize', pop_size)
-    nsga2.setOption('maxGen', max_gen)
-    nsga2.setOption('pCross_real', 0.85)
-    nsga2.setOption('pMut_real', 0.2)
-    nsga2.setOption('xinit', 1)
-    fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
-                               airfoils=airfoils, vehicle_weight=vehicle_weight, max_chord=max_chord, tip_loss=tip_loss,
-                               mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables,
-                               Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method, alt=alt,
+    slsqp = SLSQP()
+    slsqp.setOption('IPRINT', 1)
+    slsqp.setOption('MAXIT', 1000)
+    slsqp.setOption('ACC', 1e-8)
+    fstr, xstr, inform = slsqp(opt_prob, sens_type='FD', n_blades=n_blades, radius=radius, dy=dy, dr=dr, y=y, r=r,
+                               pitch=pitch, airfoils=airfoils, vehicle_weight=vehicle_weight, max_chord=max_chord,
+                               tip_loss=tip_loss, mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                               Cl_tables=Cl_tables, Cd_tables=Cd_tables, allowable_Re=allowable_Re, alt=alt,
                                v_inf=v_inf, alpha0=alpha0, mission_time=mission_time, n_azi_elements=n_azi_elements,
-                               pop_size=pop_size, max_gen=max_gen, lift_curve_info_dict=lift_curve_info_dict,
-                               max_chord_tip=max_chord_tip)
+                               lift_curve_info_dict=lift_curve_info_dict, max_chord_tip=max_chord_tip)
     print opt_prob.solution(0)
+
+    # pop_size = 300
+    # max_gen = 500
+    # opt_method = 'nograd'
+    # nsga2 = NSGA2()
+    # nsga2.setOption('PrintOut', 2)
+    # nsga2.setOption('PopSize', pop_size)
+    # nsga2.setOption('maxGen', max_gen)
+    # nsga2.setOption('pCross_real', 0.85)
+    # nsga2.setOption('xinit', 1)
+    # fstr, xstr, inform = nsga2(opt_prob, n_blades=n_blades, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
+    #                            airfoils=airfoils, vehicle_weight=vehicle_weight, max_chord=max_chord, tip_loss=tip_loss,
+    #                            mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables,
+    #                            Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method, alt=alt,
+    #                            v_inf=v_inf, alpha0=alpha0, mission_time=mission_time, n_azi_elements=n_azi_elements,
+    #                            pop_size=pop_size, max_gen=max_gen, lift_curve_info_dict=lift_curve_info_dict,
+    #                            max_chord_tip=max_chord_tip)
+    # print opt_prob.solution(0)
 
     # opt_method = 'nograd'
     # xstart_alpso = np.concatenate((np.array([omega_start, twist0_start, chord0_start]), dtwist_start, dchord_start))
@@ -303,19 +292,6 @@ def main():
     #                            airfoils=airfoils, thrust=thrust, max_chord=max_chord, tip_loss=tip_loss,
     #                            mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs, Cl_tables=Cl_tables,
     #                            Cd_tables=Cd_tables, allowable_Re=allowable_Re, opt_method=opt_method)
-    # print opt_prob.solution(0)
-
-    # opt_method = 'grad'
-    # slsqp = SLSQP()
-    # slsqp.setOption('IPRINT', 1)
-    # slsqp.setOption('MAXIT', 1000)
-    # slsqp.setOption('ACC', 1e-7)
-    # fstr, xstr, inform = slsqp(opt_prob, sens_type='FD', n_blades=n_blades, n_elements=n_elements,
-    #                            root_cutout=root_cutout, radius=radius, dy=dy, dr=dr, y=y, r=r, pitch=pitch,
-    #                            airfoils=airfoils, thrust=thrust, max_chord=max_chord,
-    #                            tip_loss=tip_loss, mach_corr=mach_corr, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-    #                            Cl_tables=Cl_tables, Cd_tables=Cd_tables, allowable_Re=allowable_Re,
-    #                            opt_method=opt_method, alt=alt)
     # print opt_prob.solution(0)
 
     def get_performance(o, c, t):
@@ -354,32 +330,40 @@ def main():
     # chord_base = calc_chord_dist(chord0_base, dchord_base)
 
     perf_opt = get_performance(omega, chord, twist)
-    #perf_base = get_performance(omega_start, chord_base, twist_base)
+    perf_orig = get_performance(original[0], original[1], original[2])
+
+    print "omega_orig = " + str(original[0])
+    print "Hover Thrust of original = " + str(perf_orig[0])
+    print "Hover Power of original = " + str(perf_orig[1])
+    print "FF Thrust of original = " + str(perf_orig[2])
+    print "FF Power of original = " + str(perf_orig[3])
+    print "Trim original (alpha, omega) = (%f, %f)" % (perf_orig[4], perf_orig[5])
+
     print "omega = " + str(omega*60/2/np.pi)
     print "Hover Thrust of optimized = " + str(perf_opt[0])
     print "Hover Power of optimized = " + str(perf_opt[1])
     print "FF Thrust of optimized = " + str(perf_opt[2])
     print "FF Power of optimized = " + str(perf_opt[3])
-    print "Trim (alpha, omega) = (%f, %f)" % (perf_opt[4], perf_opt[5])
+    print "Trim optimized (alpha, omega) = (%f, %f)" % (perf_opt[4], perf_opt[5])
     # print "Omega base = " + str(omega_start*60/2/np.pi)
     # print "Thrust of base = " + str(sum(perf_base[0]))
     # print "Power of base = " + str(sum(perf_base[1]))
     #
-    # plt.figure(1)
-    # plt.plot(r, chord_start, '-b')
-    # plt.plot(r, chord, '-r')
-    # plt.xlabel('radial location')
-    # plt.ylabel('c/R')
-    # plt.legend(['start', 'opt'])
-    #
-    # plt.figure(2)
-    # plt.plot(r, twist_start*180/np.pi, '-b')
-    # plt.plot(r, twist*180/np.pi, '-r')
-    # plt.xlabel('radial location')
-    # plt.ylabel('twist')
-    # plt.legend(['start', 'opt'])
-    #
-    # plt.show()
+    plt.figure(1)
+    plt.plot(r, original[1], '-b')
+    plt.plot(r, chord, '-r')
+    plt.xlabel('radial location')
+    plt.ylabel('c/R')
+    plt.legend(['start', 'opt'])
+
+    plt.figure(2)
+    plt.plot(r, original[2]*180/np.pi, '-b')
+    plt.plot(r, twist*180/np.pi, '-r')
+    plt.xlabel('radial location')
+    plt.ylabel('twist')
+    plt.legend(['start', 'opt'])
+
+    plt.show()
 
 if __name__ == "__main__":
     main()

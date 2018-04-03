@@ -42,13 +42,13 @@ tip_loss = True
 mach_corr = False
 
 # Forward flight parameters
-v_inf = 4.    # m/s
+v_inf = 6.    # m/s
 alpha0 = 0.0454  # Starting guess for trimmed alpha in radians
 n_azi_elements = 5
 
 # Mission times
-time_in_hover = 5. * 60     # Time in seconds
-time_in_ff = 10. * 60
+time_in_hover = 300.     # Time in seconds
+time_in_ff = 500.
 mission_time = [time_in_hover, time_in_ff]
 
 
@@ -86,13 +86,12 @@ if any(Cl_tables) and allowable_Re:
 #                        19.814, 18.786, 17.957, 17.245, 16.657, 13.973, 2.117]) * 2 * np.pi / 360
 # twist = np.array([twist[i] for i in [0, 2, 4, 6, 8, 10, 12, 14, 15, 17]])
 
-# 5k pop, 75 gen, 5 azi_elem, 9.6 in prop, 12.455 N weight
-chord = np.array([0.11227423, 0.16092858, 0.22110982, 0.3022581, 0.38617348, 0.47079303, 0.48049563, 0.4786548,
-                  0.47093371, 0.45867045])
+chord = np.array([0.11966637, 0.21945255, 0.3191826, 0.41661201, 0.46042987, 0.46404804, 0.36930386, 0.30469107,
+                  0.20583294, 0.13521735])
 chord *= radius
-twist = np.array([0.74143332, 0.6262523, 0.51260884, 0.40929492, 0.34531352, 0.30375519, 0.2827319, 0.19327623,
-                  0.17191792, 0.05220845])
-omega = 3682.44665431 * 2*np.pi/60
+twist = np.array([0.33294302, 0.40815866, 0.31931257, 0.34385899, 0.32057012, 0.26702793, 0.2698419, 0.23210482,
+                  0.19992483, 0.04420424])
+omega = 3811.29467393 * 2*np.pi/60
 
 prop = propeller.Propeller(twist, chord, radius, n_blades, r, y, dr, dy, airfoils=airfoils, Cl_tables=Cl_tables,
                            Cd_tables=Cd_tables)
@@ -104,20 +103,24 @@ ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements
              'lift_curve_info_dict': lift_curve_info_dict}
 
 
-# dT_h, P_h = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-#                             tip_loss=True, mach_corr=mach_corr, alt=alt)
-# trim0 = [alpha0, omega]
-# alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+dT_h, P_h = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                            tip_loss=True, mach_corr=mach_corr, alt=alt)
+trim0 = [alpha0, omega]
+alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+
+T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
+                                            tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                            Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                            lift_curve_info_dict=lift_curve_info_dict)
+
+print "(a_trim_new, o_trim_new) = (%f, %f)" % (alpha_trim, omega_trim*60/2/np.pi)
+print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
+print "FFnew (T, H, power)   = (%f, %f, %f)" % (T_ff, H_ff, P_ff)
 #
-# T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
-#                                             tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
-#                                             Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-#                                             lift_curve_info_dict=lift_curve_info_dict)
 #
-# print "(a_trim_new, o_trim_new) = (%f, %f)" % (alpha_trim, omega_trim*60/2/np.pi)
-# print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
-# print "FFnew (T, H, power)   = (%f, %f, %f)" % (T_ff, H_ff, P_ff)
-#
+
+
+# ######################################### Trim analysis ########################################################
 # alpha = 0.04
 # trim0 = [alpha, omega]
 # failed_converge = []
@@ -140,19 +143,19 @@ ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements
 # print "Speeds that failed to converge: \n"
 # print repr(failed_converge)
 
-alpha = 0.04
-trim0 = [alpha, omega]
-for v in [0.7, 0.9]:
-    try:
-        alpha_trim, omega_trim, converged = trim.trim(quad, v, trim0, ff_kwargs)
-        T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v, n_azi_elements, alt=alt,
-                                                    tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
-                                                    Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                                                    lift_curve_info_dict=lift_curve_info_dict)
-        if not converged:
-            print "trim did not converge"
-        else:
-            print "(alpha_trim, omega_trim, V, P) = (%f, %f, %f, %f)" % (alpha_trim, omega_trim, v, P_ff)
-        trim0 = [alpha_trim, omega_trim]
-    except FloatingPointError:
-        print "Floating point error in trim"
+# alpha = 0.04
+# trim0 = [alpha, omega]
+# for v in [0.7, 0.9]:
+#     try:
+#         alpha_trim, omega_trim, converged = trim.trim(quad, v, trim0, ff_kwargs)
+#         T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v, n_azi_elements, alt=alt,
+#                                                     tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+#                                                     Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+#                                                     lift_curve_info_dict=lift_curve_info_dict)
+#         if not converged:
+#             print "trim did not converge"
+#         else:
+#             print "(alpha_trim, omega_trim, V, P) = (%f, %f, %f, %f)" % (alpha_trim, omega_trim, v, P_ff)
+#         trim0 = [alpha_trim, omega_trim]
+#     except FloatingPointError:
+#         print "Floating point error in trim"
