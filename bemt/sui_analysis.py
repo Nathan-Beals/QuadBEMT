@@ -6,6 +6,7 @@ import aero_coeffs
 import unit_conversion
 import bemt
 import matplotlib.pyplot as plt
+import trim
 
 
 def calc_twist_dist(t0, dt_vec):
@@ -89,6 +90,13 @@ ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements
              'Cl_funs': Cl_funs, 'Cd_funs': Cd_funs, 'tip_loss': tip_loss, 'mach_corr': mach_corr, 'alt': alt,
              'lift_curve_info_dict': lift_curve_info_dict}
 
+omega = 2800 * 2*np.pi/60
+Th, Ph = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cd_funs=Cd_funs, Cl_funs=Cl_funs)
+print "(T, P) for %d RPM = (%f, %f)" % (omega*60/2/np.pi, sum(Th)*0.2248*4, Ph)
+
+omega = 4200 * 2*np.pi/60
+Th, Ph = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cd_funs=Cd_funs, Cl_funs=Cl_funs)
+print "(T, P) for %d RPM = (%f, %f)" % (omega*60/2/np.pi, sum(Th)*0.2248*4, Ph)
 
 ## Hover performance of SUI Endurance for a range of rotor speeds
 # hthrust = []
@@ -115,12 +123,18 @@ ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements
 #
 # plt.show()
 
+lift_exp = np.array([[3.2, 3.85, 4.1, 4.15, 4.2], [5.25, 6.05, 6.25, 6.35, 6.5], [7.75, 8.65, 8.9, 9.2, 9.25]])
+lift_exp = np.array([lift_exp[0], lift_exp[2]])
+drag_exp = np.array([[-0.8, -0.25, 0., 0.25, 0.3], [-1.25, -0.5, -0.1, 0.2, 0.3], [-2.2, -0.9, -0.25, 0.2, 0.45]])
+drag_exp = np.array([drag_exp[0], drag_exp[2]])
+alphas_exp = np.array([-20., -10., -5., -2.5, 0.])[::-1]
+
 q = 22.98252   # dynamic pressure in N/m**2
 dens = 1.225
 v_inf = np.sqrt(2*q/dens)
 frame_drag = 0.27 * 0.092903 * q
-omegas = np.array([2800., 3200., 3500., 3800., 4200.])
-alphas = np.linspace(20., 0., 10)
+omegas = np.array([2800., 4200.])
+alphas = np.linspace(20., 0., 10)[::-1]
 lift = np.empty([len(omegas), len(alphas)], dtype=float)
 drag = np.empty([len(omegas), len(alphas)], dtype=float)
 for j, o in enumerate(omegas*2*np.pi/60):
@@ -130,35 +144,77 @@ for j, o in enumerate(omegas*2*np.pi/60):
                                            Cl_funs=Cl_funs, Cd_funs=Cd_funs,
                                            lift_curve_info_dict=lift_curve_info_dict)
         lift[j, k] = T*np.cos(a) + H*np.sin(a)
-        drag[j, k] = H*np.cos(a) - T*np.sin(a)
+        drag[j, k] = H*np.cos(a) - T*np.sin(a) + frame_drag
+        #print "drag = " + str(H*np.cos(a) - T*np.sin(a) + frame_drag)
+        #print "frame drag = " + str(frame_drag)
 lift *= 0.224809
 drag *= 0.224809
 
-color_str = ['k*-', 'kv-', 'ks-', 'ko-', 'kD-']
-l = []
+# color_str = ['ko-', 'k*-', 'kv-', 'ks-', 'kD-']
+# color_str_disc = ['ko-', 'k*-', 'kv-', 'ks-', 'kD-']
+# l = []
+# plt.figure(1)
+# for i in xrange(len(omegas)):
+#     lift[i, :][5:] *= 0.98
+#     plt.plot(alphas*-1, lift[i, :]*4, color_str[i], markerfacecolor='white', markersize=8)
+#     l.append('%d RPM' % omegas[i])
+# for i in xrange(len(omegas)):
+#     plt.plot(alphas_exp, lift_exp[i, :], color_str_disc[i], markerfacecolor='black', markersize=8)
+#     l.append('%d RPM exp' % omegas[i])
+# plt.xlabel('Alpha, deg')
+# plt.ylabel('Lift, lb')
+# plt.legend(l, loc='lower right')
+# plt.ylim([0, 11])
+# plt.grid()
+
 plt.figure(1)
-for i in xrange(len(omegas)):
-    plt.plot(alphas*-1, lift[i, :]*4*0.92, color_str[i], markerfacecolor='white')
-    l.append('%d RPM' % omegas[i])
-plt.xlabel('Alpha, deg')
-plt.ylabel('Lift, lb')
-plt.legend(l, loc='lower right')
-plt.ylim([0, 10])
+lift[0, :][5:] *= 1
+lift[1, :][5:] *= 1
+plt.plot(alphas*1, lift[0, :]*4, 'ko-', markerfacecolor='white')
+plt.plot(alphas_exp*-1, lift_exp[0, :][::-1], 'ks-', markerfacecolor='white')
+plt.plot(alphas*1, lift[1, :]*4, 'ko-')
+plt.plot(alphas_exp*-1, lift_exp[1, :][::-1], 'ks-')
+plt.xlabel(r'$\alpha,\,\mathrm{deg}$', fontsize=18)
+plt.ylabel(r'$Lift,\,lb$', fontsize=18)
+plt.tick_params(axis='both', which='major', labelsize=14)
+plt.tick_params(axis='both', which='minor', labelsize=14)
+plt.legend(['2800 RPM BEMT', '2800 RPM exp', '4200 RPM BEMT', '4200 RPM exp'], loc='lower left')
+plt.ylim([0, 11])
 plt.grid()
 
-l = []
 plt.figure(2)
-for i in xrange(len(omegas)):
-    plt.plot(alphas*-1, drag[i, :]*4+frame_drag, color_str[i], markerfacecolor='white')
-    l.append('%d RPM' % omegas[i])
-plt.xlabel('Alpha, deg')
-plt.ylabel('Drag, lb')
-plt.legend(l, loc='lower right')
-plt.ylim([-6, 2])
+plt.plot(alphas*1, drag[0, :]*4, 'ko-', markerfacecolor='white')
+plt.plot(alphas_exp*-1, drag_exp[0, :][::-1], 'ks-', markerfacecolor='white')
+plt.plot(alphas*1, drag[1, :]*4, 'ko-')
+plt.plot(alphas_exp*-1, drag_exp[1, :][::-1], 'ks-')
+plt.xlabel(r'$\alpha,\,\mathrm{deg}$', fontsize=18)
+plt.ylabel(r'$Drag,\,lb$', fontsize=18)
+plt.tick_params(axis='both', which='major', labelsize=14)
+plt.tick_params(axis='both', which='minor', labelsize=14)
+plt.legend(['2800 RPM BEMT', '2800 RPM exp', '4200 RPM BEMT', '4200 RPM exp'], loc='lower left')
+plt.ylim([-5, 2])
 plt.grid()
 
 plt.show()
-## Trim study
+
+# l = []
+# plt.figure(2)
+# for i in xrange(len(omegas)):
+#     plt.plot(alphas*-1, drag[i, :]*4+frame_drag, color_str[i], markerfacecolor='white')
+#     l.append('%d RPM' % omegas[i])
+# for i in xrange(len(omegas)):
+#     plt.plot(alphas_exp, drag_exp[i, :], color_str_disc[i], markerfacecolor='white')
+#     l.append('%d RPM exp' % omegas[i])
+# plt.xlabel('Alpha, deg')
+# plt.ylabel('Drag, lb')
+# #l[1], l[2] = l[2], l[1]
+# plt.legend(l, loc='lower right')
+# plt.ylim([-4, 1])
+# plt.grid()
+
+
+
+# # Trim study
 # trim0 = [alpha0, omega]
 # alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
 #
@@ -170,3 +226,11 @@ plt.show()
 # print "(a_trim_new, o_trim_new) = (%f, %f)" % (alpha_trim, omega_trim*60/2/np.pi)
 # print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
 # print "FFnew (T, H, power)   = (%f, %f, %f)" % (T_ff, H_ff, P_ff)
+
+omega = 4200 * 2*np.pi/60
+a = 0.0000001
+T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega, a, v_inf, n_azi_elements, alt=alt,
+                                            tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                            Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                            lift_curve_info_dict=lift_curve_info_dict)
+dTh, Ph = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cd_funs=Cd_funs, Cl_funs=Cl_funs)

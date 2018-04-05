@@ -42,7 +42,7 @@ tip_loss = True
 mach_corr = False
 
 # Forward flight parameters
-v_inf = 6.    # m/s
+v_inf = 4.    # m/s
 alpha0 = 0.0454  # Starting guess for trimmed alpha in radians
 n_azi_elements = 5
 
@@ -103,19 +103,23 @@ ff_kwargs = {'propeller': prop, 'pitch': pitch, 'n_azi_elements': n_azi_elements
              'lift_curve_info_dict': lift_curve_info_dict}
 
 
-dT_h, P_h = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                            tip_loss=True, mach_corr=mach_corr, alt=alt)
+# dT_h, P_h = bemt.bemt_axial(prop, pitch, omega, allowable_Re=allowable_Re, Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+#                             tip_loss=True, mach_corr=mach_corr, alt=alt)
+
 trim0 = [alpha0, omega]
-alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
 
-T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
-                                            tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
-                                            Cl_funs=Cl_funs, Cd_funs=Cd_funs,
-                                            lift_curve_info_dict=lift_curve_info_dict)
+for i in xrange(1000):
+    alpha_trim, omega_trim, converged = trim.trim(quad, v_inf, trim0, ff_kwargs)
+    T_ff, H_ff, P_ff = bemt.bemt_forward_flight(quad, pitch, omega_trim, alpha_trim, v_inf, n_azi_elements, alt=alt,
+                                                tip_loss=tip_loss, mach_corr=mach_corr, allowable_Re=allowable_Re,
+                                                Cl_funs=Cl_funs, Cd_funs=Cd_funs,
+                                                lift_curve_info_dict=lift_curve_info_dict)
+    print "FFnew (T, H, power)   = (%f, %f, %f)" % (T_ff, H_ff, P_ff)
+    print i
 
-print "(a_trim_new, o_trim_new) = (%f, %f)" % (alpha_trim, omega_trim*60/2/np.pi)
-print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
-print "FFnew (T, H, power)   = (%f, %f, %f)" % (T_ff, H_ff, P_ff)
+# print "(a_trim_new, o_trim_new) = (%f, %f)" % (alpha_trim, omega_trim*60/2/np.pi)
+# print "Hover (thrust, power) = (%f, %f)" % (sum(dT_h), P_h)
+# print "FFnew (T, H, power)   = (%f, %f, %f)" % (T_ff, H_ff, P_ff)
 #
 #
 
